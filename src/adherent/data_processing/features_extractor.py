@@ -227,8 +227,8 @@ class LocalFrameFeatures:
             current_global_base_velocity = [global_frame_features.base_velocities[i - 1][0],
                                             global_frame_features.base_velocities[i - 1][1]]
 
-            # Define the 2D local reference frame at step i-1 using the base position and orientation
-            reference_base_pos = np.asarray([prev_global_base_position[0], prev_global_base_position[1]])
+            # Define the 3D local reference frame at step i-1 using the base position and orientation
+            reference_base_pos = prev_global_base_position
             reference_ground_base_dir = prev_global_ground_base_direction
 
             # Retrieve the angle theta between the reference ground base direction and the world x axis
@@ -300,14 +300,14 @@ class LocalWindowFeatures:
                     continue
 
                 # Store the reference base position and facing direction representing the current reference frame
-                reference_base_pos = current_global_base_positions[j][:2]
+                reference_base_pos = current_global_base_positions[j]
                 reference_facing_dir = current_global_facing_directions[j]
 
                 # Retrieve the angle between the reference facing direction and the world x axis
                 world_x_axis = np.asarray([1, 0])
                 cos_theta = np.dot(world_x_axis, reference_facing_dir) # unitary norm vectors
                 sin_theta = np.cross(world_x_axis, reference_facing_dir) # unitary norm vectors
-                theta = math.atan2(sin_theta, cos_theta)
+                theta = math.atan2(sin_theta, cos_theta) #this is for the ground facing and motion directions
 
                 # Retrieve the rotation from the facing direction to the world frame and its inverse
                 world_R_facing = utils.rotation_2D(theta)
@@ -316,12 +316,14 @@ class LocalWindowFeatures:
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
-                current_global_base_pos = current_global_base_positions[j][0:2]
+                current_global_base_pos = current_global_base_positions[j]
                 current_global_facing_dir = current_global_facing_directions[j]
                 current_global_base_vel = current_global_base_velocities[j][0:2]
 
                 # Express them locally
-                current_local_base_pos = facing_R_world.dot(current_global_base_pos - reference_base_pos)
+                current_reference_error = current_global_base_pos - reference_base_pos
+                current_local_base_pos_2d = facing_R_world.dot(current_reference_error[:2]) #z axis remains unchanged, no rotation, only translation equal to height
+                current_local_base_pos = np.asarray([current_local_base_pos_2d[0], current_local_base_pos_2d[1], current_reference_error[2]])
                 current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
