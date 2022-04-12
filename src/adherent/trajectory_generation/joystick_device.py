@@ -148,9 +148,9 @@ class JoystickDevice:
         print('%d axes found: %s' % (num_axes, ', '.join(self.axis_map)))
         print('%d buttons found: %s' % (num_buttons, ', '.join(self.button_map)))
 
-    def update_axis_state(self) -> None:
-        """Update the axis state when more recent data from the joystick analogs are available. In particular,
-        store the (x,y) axis values from the left analog and the (z,rz) axis values from the right analog."""
+    def update_joystick_state(self) -> None:
+        """Update the axis and button states when more recent data from the joystick is available. In particular,
+        store the binary value of the a button and the (x,y) axis values from the left analog and the (z,rz) axis values from the right analog."""
 
         # Wait for an event to read
         evbuf = self.jsdev.read(8)
@@ -160,20 +160,28 @@ class JoystickDevice:
             # Unpack the message
             time, value, kind, number = struct.unpack('IhBB', evbuf)
 
-            # Filter on the kind of message: axis data
-            if not kind & 0x02:
-                return
-
             # Retrieve the axis
-            axis = self.axis_map[number]
+            if kind & 0x02: #if the data received was axis data
+                axis = self.axis_map[number]
 
-            # Filter on the axes of interest: (x,y) for the motion direction, (z,rz) for the facing direction
-            if axis not in ["x","y","z","rz"]:
-                return
+                # Filter on the axes of interest: (x,y) for the motion direction, (z,rz) for the facing direction
+                if axis not in ["x","y","z","rz"]:
+                    return
 
-            # Update the axis state
-            fvalue = value / 32767.0
-            self.axis_states[axis] = fvalue
+                # Update the axis state
+                fvalue = value / 32767.0
+                self.axis_states[axis] = fvalue
+
+            if kind & 0x01: #if the data received was button data
+                button = self.button_map[number]
+
+                # Filter on the button of interest: a
+                if button != 'a':
+                    return
+
+                # Update the button state
+                self.button_states[button] = value #this is a bool
+
 
 
 @dataclass
@@ -204,6 +212,9 @@ class JoystickDataProcessor:
 
     # Number of points constituting the Bezier curve
     t: List = np.linspace(0, 1, 7)
+
+    # Crouch status: 'a' button data <-> a
+    curr_crouch_status: bool = False
 
     # Motion direction: left analog data <-> (x,y)
     curr_x: float = 0
@@ -243,20 +254,32 @@ class JoystickDataProcessor:
                                      max_facing_direction_angle_side_opposite_sign=max_facing_direction_angle_side_opposite_sign,
                                      max_facing_direction_angle_side_same_sign=max_facing_direction_angle_side_same_sign)
 
-    def retrieve_motion_and_facing_directions(self) -> List:
-        """Retrieve the current motion and facing directions from the axis states."""
+    def retrieve_current_feature_values(self) -> List:
+        """Retrieve the current motion and facing directions from the axis states, as well as the current crouch status from the 'a' button."""
 
         # Update axis state
-        self.device.update_axis_state()
+        self.device.update_joystick_state()
 
-        # Retrieve updated motion and facing directions from the axis states
+        # Retrieve updated crouch status, motion and facing directions from the button and axis states
+        self.update_crouch_status()
         self.update_motion_direction()
         self.update_facing_direction()
 
         # Return joystick inputs
-        joystick_inputs = [self.curr_x, self.curr_y, self.curr_z, self.curr_rz]
+        joystick_inputs = [self.curr_crouch_status, self.curr_x, self.curr_y, self.curr_z, self.curr_rz]
 
         return joystick_inputs
+
+    def update_crouch_status(self) -> None:
+        """Update the crouch status, given the 'a' button state."""
+
+        # Return if the updated values coincide with the previous ones
+        # if (self.device.button_states['a'] == self.curr_crouch_status):
+        #     print("_______________________________end of update crouch function_______________________________________")
+        #     return
+        if self.device.button_states['a'] == 1:
+            self.curr_crouch_status = not self.curr_crouch_status
+            print('Changed crouch status to: %s' % self.curr_crouch_status)
 
     def update_motion_direction(self) -> None:
         """Update the motion direction, given the (x,y) states from the left analog."""

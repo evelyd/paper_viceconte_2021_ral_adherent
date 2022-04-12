@@ -61,8 +61,8 @@ joystick = joystick_device.JoystickDataProcessor.build(device_path='/dev/input/j
 
 while True:
 
-    # At every cycle, read data from the joystick
-    joystick_inputs = joystick.retrieve_motion_and_facing_directions()
+    # At every cycle, read data from the joystick: crouch status, motion and facing dirs
+    joystick_inputs = joystick.retrieve_current_feature_values()
 
     # Every plot_rate cycle, process and send data before plotting
     if plot_i % plot_rate == 0:
