@@ -14,6 +14,7 @@ from typing import List, Dict, BinaryIO
 from dataclasses import dataclass, field
 from adherent.trajectory_generation.utils import quadratic_bezier
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
+from adherent.trajectory_generation.utils import define_initial_base_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -273,10 +274,7 @@ class JoystickDataProcessor:
     def update_crouch_status(self) -> None:
         """Update the crouch status, given the 'a' button state."""
 
-        # Return if the updated values coincide with the previous ones
-        # if (self.device.button_states['a'] == self.curr_crouch_status):
-        #     print("_______________________________end of update crouch function_______________________________________")
-        #     return
+        #if the button is pressed, switch crouch status between True/False
         if self.device.button_states['a'] == 1:
             self.curr_crouch_status = not self.curr_crouch_status
             print('Changed crouch status to: %s' % self.curr_crouch_status)
@@ -365,18 +363,38 @@ class JoystickDataProcessor:
 
         return max_facing_direction_angle
 
-    def process_joystick_inputs(self) -> (list, list, list):
+    def process_joystick_inputs(self) -> (list, list, list, list):
         """Process the joystick inputs in order to retrieve the desired future ground trajectory specified by:
+           - a line of future base heights (base_heights)
            - a quadratic Bezier curve of future base positions (quad_bezier)
            - a series of desired base velocities associated to the base positions in the Bezier curve (base_velocities)
            - a series of desired facing directions associated to the base positions in the Bezier curve (facing_dirs)
         """
 
+        base_heights = self.compute_base_heights()
         quad_bezier = self.compute_quadratic_bezier()
         base_velocities = self.compute_base_velocities(quad_bezier)
         facing_dirs = self.compute_facing_directions(quad_bezier)
 
-        return quad_bezier, base_velocities, facing_dirs
+        return base_heights, quad_bezier, base_velocities, facing_dirs
+
+    def compute_base_heights(self) -> List:
+        """Compute a linear array (vs. time) of future base heights based on the desired crouch status. The array will contain fixed
+        interval changes in base height, moving toward the initial base height if the crouch status is False and toward a constant 
+        lower reference base height if the crouch status is True.
+        """
+        initial_base_height = define_initial_base_height("iCubV2_5")
+
+        if self.curr_crouch_status: #crouching is turned on
+            base_height = initial_base_height-0.1 #-10 cm
+
+        else: #crouching is turned off
+            base_height = initial_base_height #same as initial position
+
+        # Compute the array of future base heights, all of which are the same value depending on whether crouching is enabled or not
+        base_heights = (base_height*np.ones(self.t.size)).tolist()
+
+        return base_heights
 
     def compute_quadratic_bezier(self) -> List:
         """Compute a quadratic Bezier curve of future base positions from the joystick inputs. The last point of such
@@ -469,6 +487,7 @@ class JoystickDataProcessor:
 
     def send_data(self,
                   output_port: yarp.BufferedPortBottle,
+                  base_heights: List,
                   quad_bezier: List,
                   base_velocities: List,
                   facing_dirs: List,
@@ -484,6 +503,8 @@ class JoystickDataProcessor:
         # Add data to be sent through the YARP port
         bottle = output_port.prepare()
         bottle.clear()
+        for coord in base_heights:
+            bottle.addFloat32(coord)
         for data in [quad_bezier, base_velocities, facing_dirs]:
             for elem in data:
                 for coord in elem:
@@ -494,10 +515,21 @@ class JoystickDataProcessor:
         # Send data through the YARP port
         output_port.write()
 
+    def plot_base_heights(self, base_heights: list) -> None:
+        """Visualize the desired base height (i.e. crouch status) over time."""
+
+        plt.figure(1)
+        plt.clf()
+
+        # Plot configuration
+        base_heights_plot = plt.plot(self.t,base_heights, '-o')
+        plt.xlabel("time (s)")
+        plt.ylabel("base height (m)")
+
     def plot_motion_direction(self) -> None:
         """Visualize the current motion direction."""
 
-        plt.figure(1)
+        plt.figure(2)
         plt.clf()
 
         # Circumference of unitary radius
@@ -522,7 +554,7 @@ class JoystickDataProcessor:
     def plot_facing_direction(self) -> None:
         """Visualize current facing direction."""
 
-        plt.figure(2)
+        plt.figure(3)
         plt.clf()
 
         # Circumference of unitary radius
@@ -549,7 +581,7 @@ class JoystickDataProcessor:
         associated facing directions.
         """
 
-        plt.figure(3)
+        plt.figure(4)
         plt.clf()
 
         # Upper semi-ellipse of the composed ellipsoid on which the last point of the Bezier curve is constrained
