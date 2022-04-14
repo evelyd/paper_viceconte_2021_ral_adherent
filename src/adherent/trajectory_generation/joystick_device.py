@@ -494,11 +494,12 @@ class JoystickDataProcessor:
                   joystick_inputs: List) -> None:
         """Send raw and processed joystick data through YARP."""
 
-        # The joystick input from the user written on the YARP port will contain 3 * 7 * 2 + 4 = 46 values:
-        # 0-13 are quad_bezier (x,y)
-        # 14-27 are base_velocities (x,y)
-        # 28-41 are facing_dirs (x,y)
-        # 42-45 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
+        # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
+        # 0-6 are base_heights (z)
+        # 7-20 are quad_bezier (x,y)
+        # 21-34 are base_velocities (x,y)
+        # 35-48 are facing_dirs (x,y)
+        # 49-52 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
 
         # Add data to be sent through the YARP port
         bottle = output_port.prepare()

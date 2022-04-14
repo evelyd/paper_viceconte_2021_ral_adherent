@@ -45,7 +45,7 @@ class StorageHandler:
     # Storage dictionaries for footsteps, postural, joystick input and blending coefficients
     footsteps: Dict = field(default_factory=lambda: {'l_foot': [], 'r_foot': []})
     posturals: Dict = field(default_factory=lambda: {'base': [], 'joints': [], 'links': [], 'com': []})
-    joystick_inputs: Dict = field(default_factory=lambda: {'raw_data': [], 'quad_bezier': [], 'base_velocities': [], 'facing_dirs': []})
+    joystick_inputs: Dict = field(default_factory=lambda: {'raw_data': [], 'base_heights': [], 'quad_bezier': [], 'base_velocities': [], 'facing_dirs': []})
     blending_coeffs: Dict = field(default_factory=lambda: {'w_1': [], 'w_2': [], 'w_3': [], 'w_4': []})
 
     @staticmethod
@@ -63,10 +63,11 @@ class StorageHandler:
                               joystick_input_path,
                               blending_coefficients_path)
 
-    def update_joystick_inputs_storage(self, raw_data: List, quad_bezier: List, base_velocities: List, facing_dirs: List) -> None:
+    def update_joystick_inputs_storage(self, raw_data: List, base_heights: List, quad_bezier: List, base_velocities: List, facing_dirs: List) -> None:
         """Update the storage of the joystick inputs."""
 
         self.joystick_inputs["raw_data"].append(raw_data)
+        self.joystick_inputs["base_heights"].append(base_heights)
         self.joystick_inputs["quad_bezier"].append(quad_bezier)
         self.joystick_inputs["base_velocities"].append(base_velocities)
         self.joystick_inputs["facing_dirs"].append(facing_dirs)
@@ -1562,15 +1563,16 @@ class TrajectoryGenerator:
 
         return new_base_postural, new_joints_postural, new_links_postural, new_com_postural
 
-    def retrieve_joystick_inputs(self, input_port: yarp.BufferedPortBottle, quad_bezier: List, base_velocities: List,
+    def retrieve_joystick_inputs(self, input_port: yarp.BufferedPortBottle, base_heights: List, quad_bezier: List, base_velocities: List,
                                  facing_dirs: List, raw_data: List) -> (List, List, List, List):
         """Retrieve user-specified joystick inputs received through YARP port."""
 
-        # The joystick input from the user written on the YARP port will contain 3 * 7 * 2 + 4 = 46 values:
-        # 0-13 are quad_bezier (x,y)
-        # 14-27 are base_velocities (x,y)
-        # 28-41 are facing_dirs (x,y)
-        # 42-45 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
+        # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
+        # 0-6 are base_heights (z)
+        # 7-20 are quad_bezier (x,y)
+        # 21-34 are base_velocities (x,y)
+        # 35-48 are facing_dirs (x,y)
+        # 49-52 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
 
         # Read from the input port
         res = input_port.read(shouldWait=False)
@@ -1580,21 +1582,23 @@ class TrajectoryGenerator:
             if quad_bezier:
 
                 # If the port is empty but the previous joystick inputs are not empty, return them
-                return quad_bezier, base_velocities, facing_dirs, raw_data
+                return base_heights, quad_bezier, base_velocities, facing_dirs, raw_data
 
             else:
 
                 # If the port is empty and the previous joystick inputs are empty, return default values
+                default_base_heights = [0 for _ in range(len(self.autoregression.t))]
                 default_quad_bezier = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_base_velocities = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_facing_dirs = [[0, 1] for _ in range(len(self.autoregression.t))]
                 default_raw_data = [0, 0, 0, -1] # zero motion direction (robot stopped), forward facing direction
 
-                return default_quad_bezier, default_base_velocities, default_facing_dirs, default_raw_data
+                return default_base_heights, default_quad_bezier, default_base_velocities, default_facing_dirs, default_raw_data
 
         else:
 
             # If the port is not empty, retrieve the new joystick inputs
+            new_base_heights = []
             new_quad_bezier = []
             new_base_velocities = []
             new_facing_dirs = []
@@ -1602,9 +1606,11 @@ class TrajectoryGenerator:
 
             for k in range(0, res.size() - 4, 2):
                 coords = [res.get(k).asFloat32(), res.get(k + 1).asFloat32()]
-                if k < 14:
+                if k < 7:
+                    new_base_heights.append(coords)
+                elif k < 21:
                     new_quad_bezier.append(coords)
-                elif k < 28:
+                elif k < 35:
                     new_base_velocities.append(coords)
                 else:
                     new_facing_dirs.append(coords)
@@ -1612,7 +1618,7 @@ class TrajectoryGenerator:
             for k in range(res.size() - 4, res.size()):
                 new_raw_data.append(res.get(k).asFloat32())
 
-            return new_quad_bezier, new_base_velocities, new_facing_dirs, new_raw_data
+            return new_base_heights, new_quad_bezier, new_base_velocities, new_facing_dirs, new_raw_data
 
     def autoregression_and_blending(self, current_output: np.array, denormalized_current_output: np.array, quad_bezier: List,
                   facing_dirs: List, base_velocities: List) -> (List, List, List):
@@ -1634,7 +1640,7 @@ class TrajectoryGenerator:
         return blended_base_positions, blended_facing_dirs, blended_base_velocities
 
     def update_storages_and_save(self, blending_coefficients: List, base_postural: List, joints_postural: List,
-                                 links_postural: List, com_postural: List, raw_data: List, quad_bezier: List,
+                                 links_postural: List, com_postural: List, raw_data: List, base_heights: List, quad_bezier: List,
                                  base_velocities: List, facing_dirs: List, save_every_N_iterations: int) -> None:
         """Update the blending coefficients, posturals and joystick input storages and periodically save data."""
 
@@ -1646,7 +1652,7 @@ class TrajectoryGenerator:
                                               links=links_postural, com=com_postural)
 
         # Update joystick inputs storage
-        self.storage.update_joystick_inputs_storage(raw_data=raw_data, quad_bezier=quad_bezier,
+        self.storage.update_joystick_inputs_storage(raw_data=raw_data, base_heights=base_heights, quad_bezier=quad_bezier,
                                                     base_velocities=base_velocities, facing_dirs=facing_dirs)
 
         # Periodically save data

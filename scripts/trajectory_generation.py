@@ -70,6 +70,7 @@ yarp.Network.connect("/joystick_out", p_in.getName())
 
 # Initialization of the joystick raw and processed inputs received through YARP ports
 raw_data = [] # motion and facing directions
+base_heights = []
 quad_bezier = []
 base_velocities = []
 facing_dirs = []
@@ -194,8 +195,9 @@ with tf.Session(config=config) as sess:
                                                                               link_names=icub.link_names())
 
         # Retrieve user input data from YARP port
-        quad_bezier, base_velocities, facing_dirs, raw_data = \
+        base_heights, quad_bezier, base_velocities, facing_dirs, raw_data = \
             generator.retrieve_joystick_inputs(input_port=p_in,
+                                               base_heights=base_heights,
                                                quad_bezier=quad_bezier,
                                                base_velocities=base_velocities,
                                                facing_dirs=facing_dirs,
@@ -216,6 +218,7 @@ with tf.Session(config=config) as sess:
                                            links_postural=new_links_postural,
                                            com_postural=new_com_postural,
                                            raw_data=raw_data,
+                                           base_heights=base_heights,
                                            quad_bezier=quad_bezier,
                                            base_velocities=base_velocities,
                                            facing_dirs=facing_dirs,
