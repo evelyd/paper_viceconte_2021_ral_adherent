@@ -410,7 +410,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             X_i = []
 
-            # Add current local base positions (24 components)
+            # Add current local base positions (36 components)
             current_local_base_positions = []
             for local_base_position in self.local_window_features.base_positions[i - window_length_frames]:
                 current_local_base_positions.extend(local_base_position)
@@ -440,7 +440,7 @@ class FeaturesExtractor:
             prev_s_dot = self.global_frame_features.s_dot[i - 2]
             X_i.extend(prev_s_dot)
 
-            # Store current input vector (137 components)
+            # Store current input vector (149 components)
             X.append(X_i)
 
         # Debug
@@ -466,7 +466,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local base positions (12 components)
+            # Add future local base positions (18 components)
             next_local_base_positions = []
             for j in range(len(self.local_window_features.base_positions[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
@@ -507,7 +507,7 @@ class FeaturesExtractor:
             current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (103 components)
+            # Store current output vector (109 components)
             Y.append(Y_i)
 
         # Debug
