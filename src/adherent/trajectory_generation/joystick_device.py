@@ -216,6 +216,7 @@ class JoystickDataProcessor:
 
     # Crouch status: 'a' button data <-> a
     curr_crouch_status: bool = False
+    a_pressed: bool = False
 
     # Motion direction: left analog data <-> (x,y)
     curr_x: float = 0
@@ -274,10 +275,13 @@ class JoystickDataProcessor:
     def update_crouch_status(self) -> None:
         """Update the crouch status, given the 'a' button state."""
 
-        #if the button is pressed, switch crouch status between True/False
-        if self.device.button_states['a'] == 1:
-            self.curr_crouch_status = not self.curr_crouch_status
-            print('Changed crouch status to: %s' % self.curr_crouch_status)
+        if self.device.button_states["a"]:
+            self.a_pressed = True
+        else:
+            if self.a_pressed:
+                self.curr_crouch_status = not self.curr_crouch_status
+                self.a_pressed = False
+                print('Changed crouch status to: %s' % self.curr_crouch_status)
 
     def update_motion_direction(self) -> None:
         """Update the motion direction, given the (x,y) states from the left analog."""
