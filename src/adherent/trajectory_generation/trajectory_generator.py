@@ -26,6 +26,7 @@ from adherent.trajectory_generation.utils import trajectory_blending
 from adherent.trajectory_generation.utils import load_output_mean_and_std
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
 from adherent.trajectory_generation.utils import load_component_wise_input_mean_and_std
+from adherent.trajectory_generation.utils import define_initial_base_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -1634,11 +1635,13 @@ class TrajectoryGenerator:
             new_facing_dirs = []
             new_raw_data = []
 
-            for k in range(0, res.size() - 4, 2):
+            for k in range(0,len(base_heights)):
+                coord = res.get(k).asFloat32()
+                new_base_heights.append(coord)
+
+            for k in range(7, res.size() - 4, 2):
                 coords = [res.get(k).asFloat32(), res.get(k + 1).asFloat32()]
-                if k < 7:
-                    new_base_heights.append(coords)
-                elif k < 21:
+                if k < 21:
                     new_quad_bezier.append(coords)
                 elif k < 35:
                     new_base_velocities.append(coords)

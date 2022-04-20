@@ -267,7 +267,7 @@ class JoystickDataProcessor:
         self.update_facing_direction()
 
         # Return joystick inputs
-        joystick_inputs = [self.curr_crouch_status, self.curr_x, self.curr_y, self.curr_z, self.curr_rz]
+        joystick_inputs = [self.curr_x, self.curr_y, self.curr_z, self.curr_rz]
 
         return joystick_inputs
 
