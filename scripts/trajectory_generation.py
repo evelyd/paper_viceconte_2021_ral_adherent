@@ -107,10 +107,11 @@ kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravi
 # ==================
 
 # Define the indexes of the figures for plotting
-figure_facing_dirs = 1
-figure_base_vel = 2
-figure_blending_coefficients = 3
-figure_footsteps = 4
+figure_base_heights = 1
+figure_facing_dirs = 2
+figure_base_vel = 3
+figure_blending_coefficients = 4
+figure_footsteps = 5
 plt.ion()
 
 # ====================
@@ -225,11 +226,12 @@ with tf.Session(config=config) as sess:
                                            save_every_N_iterations=save_every_N_iterations)
 
         if plot_trajectory_blending:
-
             # Plot the trajectory blending
-            generator.plotter.plot_trajectory_blending(figure_facing_dirs=figure_facing_dirs,
+            generator.plotter.plot_trajectory_blending(figure_base_heights=figure_base_heights,
+                                                       figure_facing_dirs=figure_facing_dirs,
                                                        figure_base_vel=figure_base_vel,
                                                        denormalized_current_output=denormalized_current_output,
+                                                       base_heights=base_heights,
                                                        quad_bezier=quad_bezier, facing_dirs=facing_dirs,
                                                        base_velocities=base_velocities,
                                                        blended_base_positions=blended_base_positions,

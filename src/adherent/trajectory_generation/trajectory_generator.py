@@ -677,33 +677,36 @@ class Plotter:
     @staticmethod
     def plot_predicted_future_trajectory(figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int, denormalized_current_output: List) -> None:
         """Plot the future trajectory predicted by the network (magenta)."""
-
+    
         # Retrieve predicted base positions, facing directions and base velocities from the denormalized network output
         predicted_base_pos = denormalized_current_output[0:18]
         predicted_facing_dirs = denormalized_current_output[18:30]
         predicted_base_vel = denormalized_current_output[30:42]
 
+        predicted_base_heights = []
+        predicted_base_xy = []
+
         plt.figure(figure_base_heights)
 
         for k in range(0, len(predicted_base_pos), 3):
+            base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
+            predicted_base_xy.append(base_position)
+            predicted_base_heights.append(predicted_base_pos[k+2])
 
-            # Plot base heights
-            base_height = predicted_base_pos[k+2]
-            plt.scatter(range(len(base_height), 3)/3, base_height, c='m')
+        # Plot base heights over time
+        # print(predicted_base_heights)
+        plt.scatter(np.linspace(1/6, 1, 6), predicted_base_heights, c='m', label="Predicted future trajectory")
 
         plt.figure(figure_facing_dirs)
 
-        for k in range(0, len(predicted_base_pos), 3):
-
-            # Plot base positions
-            base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
-            plt.scatter(-base_position[1], base_position[0], c='m')
-
+        i = 0
+        for k in range(0, len(predicted_facing_dirs), 2):
             # Plot facing directions (scaled for visualization purposes)
             facing_direction = [predicted_facing_dirs[k] / 10, predicted_facing_dirs[k + 1] / 10]
-            plt.plot([-base_position[1], -base_position[1] - facing_direction[1]],
-                     [base_position[0], base_position[0] + facing_direction[0]],
+            plt.plot([-predicted_base_xy[i][1], -predicted_base_xy[i][1] - facing_direction[1]],
+                     [predicted_base_xy[i][0], predicted_base_xy[i][0] + facing_direction[0]],
                      'm')
+            i += 1
 
         plt.figure(figure_base_vel)
 
@@ -713,11 +716,14 @@ class Plotter:
             base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
             plt.scatter(-base_position[1], base_position[0], c='m')
 
+        i = 0
+        for k in range(0, len(predicted_base_vel), 2):
             # Plot base velocities (scaled for visualization purposes)
             base_velocity = [predicted_base_vel[k] / 10, predicted_base_vel[k + 1] / 10]
-            plt.plot([-base_position[1], -base_position[1] - base_velocity[1]],
-                     [base_position[0], base_position[0] + base_velocity[0]],
+            plt.plot([-predicted_base_xy[i][1], -predicted_base_xy[i][1] - base_velocity[1]],
+                     [predicted_base_xy[i][0], predicted_base_xy[i][0] + base_velocity[0]],
                      'm')
+            i += 1
 
     @staticmethod
     def plot_desired_future_trajectory(figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int,
@@ -731,7 +737,7 @@ class Plotter:
         plt.figure(figure_base_heights)
 
         # Plot base heights
-        plt.scatter(range(len(base_heights)), base_heights, c='gray')
+        plt.scatter(np.linspace(0, 1, 7), base_heights, c='gray', label="Desired future trajectory")
 
         plt.figure(figure_facing_dirs)
 
@@ -760,15 +766,17 @@ class Plotter:
                                        blended_facing_dirs: List, blended_base_velocities: List) -> None:
         """Plot the future trajectory obtained by blending the network output and the user input (green)."""
 
+        # print(blended_base_positions)
+
         # Extract components for plotting
         blended_base_positions_x = [elem[0] for elem in blended_base_positions]
         blended_base_positions_y = [elem[1] for elem in blended_base_positions]
-        blended_base_positions_z = [elem[2] for elem in blended_base_positions] #TODO add this correctly to autoregression_and_blending
+        # blended_base_positions_z = [elem[2] for elem in blended_base_positions] #TODO add this correctly to autoregression_and_blending
 
         plt.figure(figure_base_heights)
 
         # Plot base heights
-        plt.scatter(range(len(blended_base_positions_z)), blended_base_positions_z, c='g')
+        # plt.scatter(np.linspace(0, 1, 7), blended_base_positions_z, c='g')
 
         plt.figure(figure_facing_dirs)
 
@@ -1623,11 +1631,9 @@ class TrajectoryGenerator:
                 default_base_velocities = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_facing_dirs = [[0, 1] for _ in range(len(self.autoregression.t))]
                 default_raw_data = [0, 0, 0, -1] # zero motion direction (robot stopped), forward facing direction
-
                 return default_base_heights, default_quad_bezier, default_base_velocities, default_facing_dirs, default_raw_data
 
         else:
-
             # If the port is not empty, retrieve the new joystick inputs
             new_base_heights = []
             new_quad_bezier = []
@@ -1635,7 +1641,7 @@ class TrajectoryGenerator:
             new_facing_dirs = []
             new_raw_data = []
 
-            for k in range(0,len(base_heights)):
+            for k in range(0,7):
                 coord = res.get(k).asFloat32()
                 new_base_heights.append(coord)
 
