@@ -208,6 +208,7 @@ with tf.Session(config=config) as sess:
         blended_base_positions, blended_facing_dirs, blended_base_velocities = \
             generator.autoregression_and_blending(current_output=current_output,
                                                   denormalized_current_output=denormalized_current_output,
+                                                  base_heights=base_heights,
                                                   quad_bezier=quad_bezier,
                                                   facing_dirs=facing_dirs,
                                                   base_velocities=base_velocities)
