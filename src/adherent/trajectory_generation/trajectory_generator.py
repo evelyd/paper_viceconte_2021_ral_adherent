@@ -768,12 +768,12 @@ class Plotter:
         # Extract components for plotting
         blended_base_positions_x = [elem[0] for elem in blended_base_positions]
         blended_base_positions_y = [elem[1] for elem in blended_base_positions]
-        # blended_base_positions_z = [elem[2] for elem in blended_base_positions] #TODO add this correctly to autoregression_and_blending
+        blended_base_positions_z = [elem[2] for elem in blended_base_positions]
 
         plt.figure(figure_base_heights)
 
         # Plot base heights
-        # plt.scatter(np.linspace(0, 1, 7), blended_base_positions_z, c='g')
+        plt.scatter(np.linspace(0, 1, 7), blended_base_positions_z, c='g', label="Blended future trajectory")
 
         plt.figure(figure_facing_dirs)
 
@@ -869,6 +869,8 @@ class Plotter:
         plt.title("BASE HEIGHTS OVER TIME")
         plt.xlabel('Time (s)')
         plt.ylabel('Base height (m)')
+        plt.xlim([0, 1])
+        plt.ylim([0.5, 0.7])
         plt.legend()
 
         # Configure facing directions plot
@@ -1083,8 +1085,6 @@ class Autoregression:
                                             base_heights: List, quad_bezier: List) -> (List, List, List):
         """Use the base positions in an autoregressive fashion."""
 
-        #TODO initial base pos (for current/new past traj base pos) defined in define_initial_past_trajectory in utils.py
-
         # ===================
         # PAST BASE POSITIONS
         # ===================
@@ -1116,10 +1116,7 @@ class Autoregression:
         past_base_positions = past_base_positions_plot.copy()
 
         for k in range(len(past_base_positions)):
-            if k >= len(self.Xstd_dict["past_base_positions"]):
-                past_base_positions[k] = 0.0 #TODO remove this dummy value / if statement once debugging is done
-            else: #TODO remove this else but keep its contents
-                past_base_positions[k] = (past_base_positions[k] - self.Xmean_dict["past_base_positions"][k]) / \
+            past_base_positions[k] = (past_base_positions[k] - self.Xmean_dict["past_base_positions"][k]) / \
                                      self.Xstd_dict["past_base_positions"][k]
 
         # Add the compressed window of normalized past base positions to the next input
@@ -1129,17 +1126,17 @@ class Autoregression:
         # =====================
 
         # Extract future base positions for blending (i.e. in the plot reference frame)
-        future_base_pos_plot = denormalized_current_output[0:18] # TODO this is from the trained NN, so it is only 103 instead of 109 (nums look weird for now)
+        future_base_pos_plot = denormalized_current_output[0:18]
+        
         future_base_pos_blend = [[0.0, 0.0, define_initial_base_height(robot="iCubV2_5")]] #in form -y, x, z (for some reason)
         for k in range(0, len(future_base_pos_plot), 3):
             future_base_pos_blend.append([-future_base_pos_plot[k + 1], future_base_pos_plot[k], future_base_pos_plot[k+2]])
 
         # Blend user-specified and network-predicted future base positions
-        # TODO add base heights to future_base_pos_blend and quad_bezier, in the same position in both places ([2] of each array)
         input_positions = []
+
         for k in range(len(quad_bezier)):
             input_positions.append([quad_bezier[k][0], quad_bezier[k][1], base_heights[k]])
-
         blended_base_positions = trajectory_blending(future_base_pos_blend, input_positions, self.t, self.tau_base_positions)
 
         # Reshape blended future base positions, with height as 3rd component
@@ -1152,10 +1149,7 @@ class Autoregression:
         # Normalize blended future base positions
         future_base_pos_blend_features_normalized = future_base_pos_blend_features.copy()
         for k in range(len(future_base_pos_blend_features_normalized)):
-            if k >= len(self.Xstd_dict["future_base_positions"]):
-                future_base_pos_blend_features_normalized[k] = 0.0 #TODO remove this dummy value / if statement once debugging is done
-            else: #TODO remove this else but keep its contents
-                future_base_pos_blend_features_normalized[k] = (future_base_pos_blend_features_normalized[k] -
+            future_base_pos_blend_features_normalized[k] = (future_base_pos_blend_features_normalized[k] -
                                                             self.Xmean_dict["future_base_positions"][k]) / \
                                                            self.Xstd_dict["future_base_positions"][k]
         # Add the normalized blended future base positions to the next input
@@ -1207,7 +1201,7 @@ class Autoregression:
         # ========================
 
         # Extract future facing directions for blending (i.e. in the plot reference frame)
-        future_facing_dirs_plot = denormalized_current_output[12:24]
+        future_facing_dirs_plot = denormalized_current_output[18:30]
         future_facing_dirs_blend = [[0.0, 1.0]]
         for k in range(0, len(future_facing_dirs_plot), 2):
             future_facing_dirs_blend.append([-future_facing_dirs_plot[k + 1], future_facing_dirs_plot[k]])
@@ -1255,7 +1249,7 @@ class Autoregression:
 
         # Add as last element the current (local) base velocity (this is an approximation)
         new_past_trajectory_base_velocities.append(self.new_facing_R_world.dot(rotation_2D(self.new_base_yaw).dot(
-            [denormalized_current_output[100], denormalized_current_output[101]])))
+            [denormalized_current_output[106], denormalized_current_output[107]])))
 
         # Update past base velocities
         self.new_past_trajectory_base_velocities = new_past_trajectory_base_velocities
@@ -1279,7 +1273,7 @@ class Autoregression:
         # ======================
 
         # Extract future base velocities for blending (i.e. in the plot reference frame)
-        future_base_vel_plot = denormalized_current_output[24:36]
+        future_base_vel_plot = denormalized_current_output[30:42]
         future_base_vel_blend = [[0.0, self.base_vel_norm]] # This is an approximation.
         for k in range(0, len(future_base_vel_plot), 2):
             future_base_vel_blend.append([-future_base_vel_plot[k + 1], future_base_vel_plot[k]])
@@ -1328,11 +1322,11 @@ class Autoregression:
         """Use the joint positions and velocities in an autoregressive fashion."""
 
         # Add the (already normalized) joint positions to the next input
-        s = current_output[0][36:68]
+        s = current_output[0][42:74]
         next_nn_X.extend(s)
 
         # Add the (already normalized) joint velocities to the next input
-        s_dot = current_output[0][68:100]
+        s_dot = current_output[0][74:106]
         next_nn_X.extend(s_dot)
 
         return next_nn_X
@@ -1340,7 +1334,6 @@ class Autoregression:
     def check_robot_stopped(self, next_nn_X: List) -> None:
         """Check whether the robot is stopped (i.e. whether subsequent network inputs are almost identical)."""
 
-        next_nn_X = next_nn_X[:137] #TODO remove later
         # Compute the difference in norm between the current and the next network inputs
         nn_X_difference_norm = np.linalg.norm(np.array(self.current_nn_X[0]) - np.array(next_nn_X))
 
@@ -1374,7 +1367,6 @@ class Autoregression:
         # Initialize empty next input
         next_nn_X = []
 
-        #TODO next nn X is in the form of the nn input: so to work, the blended positions have to be of form: [x1, y1, z1, x2, y2, z2, ...]
         # Use the base positions in an autoregressive fashion
         next_nn_X, blended_base_positions, future_base_pos_blend_features = \
             self.autoregressive_usage_base_positions(next_nn_X=next_nn_X,
@@ -1515,8 +1507,6 @@ class TrajectoryGenerator:
         """Retrieve the network output (also denormalized) and the blending coefficients."""
 
         # Retrieve the network output and the blending coefficients
-        # TODO remove the following line once nn model is trained
-        self.autoregression.current_nn_X[0] = self.autoregression.current_nn_X[0][:137]
         current_output, current_blending_coefficients = self.model.evaluate_tensors(nn_X=nn_X,
                                                                                     current_nn_X=self.autoregression.current_nn_X,
                                                                                     nn_keep_prob=nn_keep_prob,
@@ -1532,13 +1522,13 @@ class TrajectoryGenerator:
         """Apply joint positions and base orientation from the output returned by the network."""
 
         # Extract the new joint positions from the denormalized network output
-        joint_positions = np.asarray(denormalized_current_output[36:68])
+        joint_positions = np.asarray(denormalized_current_output[42:74])
 
         # If the robot is stopped, handle unnatural in-place rotations by imposing zero angular base velocity
         if self.autoregression.stopped:
             omega = 0
         else:
-            omega = denormalized_current_output[102]
+            omega = denormalized_current_output[108]
 
         # Extract the new base orientation from the output
         base_yaw_dot = omega * self.generation_rate
@@ -1631,7 +1621,6 @@ class TrajectoryGenerator:
         if res is None:
 
             if quad_bezier:
-
                 # If the port is empty but the previous joystick inputs are not empty, return them
                 return base_heights, quad_bezier, base_velocities, facing_dirs, raw_data
 

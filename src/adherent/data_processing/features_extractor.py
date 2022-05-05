@@ -177,7 +177,6 @@ class GlobalWindowFeatures:
                 current_global_base_positions.append(global_frame_features.base_positions[i + window_index])
                 current_global_facing_directions.append(global_frame_features.facing_directions[i + window_index])
                 current_global_base_velocities.append(global_frame_features.base_velocities[i + window_index])
-
                 # Compute the desired velocity as sum of distances between the base positions in the future trajectory
                 if window_index == self.window_indexes[0]:
                     base_position_prev = global_frame_features.base_positions[i + window_index]
@@ -192,7 +191,6 @@ class GlobalWindowFeatures:
             self.base_positions.append(current_global_base_positions)
             self.facing_directions.append(current_global_facing_directions)
             self.base_velocities.append(current_global_base_velocities)
-
 
 @dataclass
 class LocalFrameFeatures:
@@ -319,11 +317,10 @@ class LocalWindowFeatures:
                 current_global_base_pos = current_global_base_positions[j]
                 current_global_facing_dir = current_global_facing_directions[j]
                 current_global_base_vel = current_global_base_velocities[j][0:2]
-
                 # Express them locally
                 current_reference_error = current_global_base_pos - reference_base_pos
-                current_local_base_pos_2d = facing_R_world.dot(current_reference_error[:2]) #z axis remains unchanged, no rotation, only translation equal to height
-                current_local_base_pos = np.asarray([current_local_base_pos_2d[0], current_local_base_pos_2d[1], current_reference_error[2]])
+                current_local_base_pos_2d = facing_R_world.dot(current_reference_error[:2]) #z axis remains unchanged, no rotation, no translation in z dir
+                current_local_base_pos = np.asarray([current_local_base_pos_2d[0], current_local_base_pos_2d[1], current_global_base_pos[2]])
                 current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 

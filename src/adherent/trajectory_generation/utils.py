@@ -161,14 +161,23 @@ def define_initial_nn_X(robot: str) -> List:
         raise Exception("Initial network input X only defined for iCubV2_5.")
 
     # Initial input manually retrieved from a standing pose
-    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, 0.2088665596830631, -0.0021020581878808007, #TODO add measured base heights here later
-                     0.20531231168918174, -0.0008621646186016302, 0.2038031784172399, 0.0006000018873639539,
-                     0.20492310200003655, 0.00219387868363895, 0.0, 0.0, -0.2861243642562259, 0.009288430936687906,
-                     -0.31823372134674327, 0.0041163061304422335, -0.3351330296979504, 0.00013665165796125482,
-                     -0.32760743228415534, 0.0013394518793597135, -0.28954434529500506, -0.002034172225900831,
-                     -0.22271595678165187, -0.007108432655308732, 0.4874557110316117, -0.060262978658173996,
-                     0.483219430286254, -0.05549580293883961, 0.48355811354675093, -0.05073190069674229,
-                     0.48430037825453315, -0.0463878541965186, 0.47622379318033997, -0.042673799121161156, 0.0,
+    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, define_initial_base_height(robot="iCubV2_5"),
+                     0.2088665596830631, -0.0021020581878808007, define_initial_base_height(robot="iCubV2_5"),
+                     0.20531231168918174, -0.0008621646186016302, define_initial_base_height(robot="iCubV2_5"),
+                     0.2038031784172399, 0.0006000018873639539, define_initial_base_height(robot="iCubV2_5"),
+                     0.20492310200003655, 0.00219387868363895, define_initial_base_height(robot="iCubV2_5"),
+                     0.0, 0.0, define_initial_base_height(robot="iCubV2_5"),
+                     -0.2861243642562259, 0.009288430936687906, define_initial_base_height(robot="iCubV2_5"),
+                     -0.31823372134674327, 0.0041163061304422335, define_initial_base_height(robot="iCubV2_5"),
+                     -0.3351330296979504, 0.00013665165796125482, define_initial_base_height(robot="iCubV2_5"),
+                     -0.32760743228415534, 0.0013394518793597135, define_initial_base_height(robot="iCubV2_5"),
+                     -0.28954434529500506, -0.002034172225900831, define_initial_base_height(robot="iCubV2_5"),
+                     -0.22271595678165187, -0.007108432655308732, define_initial_base_height(robot="iCubV2_5"),
+                     0.4874557110316117, -0.060262978658173996,
+                     0.483219430286254, -0.05549580293883961, 
+                     0.48355811354675093, -0.05073190069674229,
+                     0.48430037825453315, -0.0463878541965186, 
+                     0.47622379318033997, -0.042673799121161156, 0.0,
                      -0.001670958751021921, 0.48823702730673707, -0.012628077673047147, 0.4985278001448309,
                      -0.017930827973037217, 0.4894521106023875, -0.013467714394521855, 0.48597445992611943,
                      -0.004418383745209343, 0.4891737721962037, -0.0006736504004182218, 0.4998745767668644,
@@ -255,7 +264,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
     #TODO for now use define initial height 2_5 as heights, replace later with recording?
     for k in range (0, len(initial_past_trajectory_base_pos)):
       initial_past_trajectory_base_pos[k] = [initial_past_trajectory_base_pos[k][0], initial_past_trajectory_base_pos[k][1], define_initial_base_height(robot="iCubV2_5")]
-    
+
     # Initial past facing directions manually retrieved from a standing pose
     initial_past_trajectory_facing_dirs = [[0.9998092990492257, -0.019528582506055422],
                                     [0.9998168506034699, -0.01913805761718488],
@@ -412,24 +421,24 @@ def load_component_wise_input_mean_and_std(datapath: str) -> (Dict, Dict):
             Xstd[i] = 1
 
     # Retrieve component-wise input mean and std (used to normalize the next input for the network)
-    Xmean_dict = {"past_base_positions": Xmean[0:12]}
-    Xstd_dict = {"past_base_positions": Xstd[0:12]}
-    Xmean_dict["future_base_positions"] = Xmean[12:24]
-    Xstd_dict["future_base_positions"] = Xstd[12:24]
-    Xmean_dict["past_facing_directions"] = Xmean[24:36]
-    Xstd_dict["past_facing_directions"] = Xstd[24:36]
-    Xmean_dict["future_facing_directions"] = Xmean[36:48]
-    Xstd_dict["future_facing_directions"] = Xstd[36:48]
-    Xmean_dict["past_base_velocities"] = Xmean[48:60]
-    Xstd_dict["past_base_velocities"] = Xstd[48:60]
-    Xmean_dict["future_base_velocities"] = Xmean[60:72]
-    Xstd_dict["future_base_velocities"] = Xstd[60:72]
-    Xmean_dict["future_traj_length"] = Xmean[72]
-    Xstd_dict["future_traj_length"] = Xstd[72]
-    Xmean_dict["s"] = Xmean[73:105]
-    Xstd_dict["s"] = Xstd[73:105]
-    Xmean_dict["s_dot"] = Xmean[105:]
-    Xstd_dict["s_dot"] = Xstd[105:]
+    Xmean_dict = {"past_base_positions": Xmean[0:18]}
+    Xstd_dict = {"past_base_positions": Xstd[0:18]}
+    Xmean_dict["future_base_positions"] = Xmean[18:36]
+    Xstd_dict["future_base_positions"] = Xstd[18:36]
+    Xmean_dict["past_facing_directions"] = Xmean[36:48]
+    Xstd_dict["past_facing_directions"] = Xstd[36:48]
+    Xmean_dict["future_facing_directions"] = Xmean[48:60]
+    Xstd_dict["future_facing_directions"] = Xstd[48:60]
+    Xmean_dict["past_base_velocities"] = Xmean[60:72]
+    Xstd_dict["past_base_velocities"] = Xstd[60:72]
+    Xmean_dict["future_base_velocities"] = Xmean[72:84]
+    Xstd_dict["future_base_velocities"] = Xstd[72:84]
+    Xmean_dict["future_traj_length"] = Xmean[84]
+    Xstd_dict["future_traj_length"] = Xstd[84]
+    Xmean_dict["s"] = Xmean[85:117]
+    Xstd_dict["s"] = Xstd[85:117]
+    Xmean_dict["s_dot"] = Xmean[117:]
+    Xstd_dict["s_dot"] = Xstd[117:]
 
     return Xmean_dict, Xstd_dict
 
