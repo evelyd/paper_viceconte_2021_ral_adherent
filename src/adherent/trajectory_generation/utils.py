@@ -161,18 +161,18 @@ def define_initial_nn_X(robot: str) -> List:
         raise Exception("Initial network input X only defined for iCubV2_5.")
 
     # Initial input manually retrieved from a standing pose
-    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, define_initial_base_height(robot="iCubV2_5"),
-                     0.2088665596830631, -0.0021020581878808007, define_initial_base_height(robot="iCubV2_5"),
-                     0.20531231168918174, -0.0008621646186016302, define_initial_base_height(robot="iCubV2_5"),
-                     0.2038031784172399, 0.0006000018873639539, define_initial_base_height(robot="iCubV2_5"),
-                     0.20492310200003655, 0.00219387868363895, define_initial_base_height(robot="iCubV2_5"),
-                     0.0, 0.0, define_initial_base_height(robot="iCubV2_5"),
-                     -0.2861243642562259, 0.009288430936687906, define_initial_base_height(robot="iCubV2_5"),
-                     -0.31823372134674327, 0.0041163061304422335, define_initial_base_height(robot="iCubV2_5"),
-                     -0.3351330296979504, 0.00013665165796125482, define_initial_base_height(robot="iCubV2_5"),
-                     -0.32760743228415534, 0.0013394518793597135, define_initial_base_height(robot="iCubV2_5"),
-                     -0.28954434529500506, -0.002034172225900831, define_initial_base_height(robot="iCubV2_5"),
-                     -0.22271595678165187, -0.007108432655308732, define_initial_base_height(robot="iCubV2_5"),
+    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, 0.0,
+                     0.2088665596830631, -0.0021020581878808007, 0.0,
+                     0.20531231168918174, -0.0008621646186016302, 0.0,
+                     0.2038031784172399, 0.0006000018873639539, 0.0,
+                     0.20492310200003655, 0.00219387868363895, 0.0,
+                     0.0, 0.0, 0.0,
+                     -0.2861243642562259, 0.009288430936687906, 0.0,
+                     -0.31823372134674327, 0.0041163061304422335, 0.0,
+                     -0.3351330296979504, 0.00013665165796125482, 0.0,
+                     -0.32760743228415534, 0.0013394518793597135, 0.0,
+                     -0.28954434529500506, -0.002034172225900831, 0.0,
+                     -0.22271595678165187, -0.007108432655308732, 0.0,
                      0.4874557110316117, -0.060262978658173996,
                      0.483219430286254, -0.05549580293883961, 
                      0.48355811354675093, -0.05073190069674229,
@@ -263,7 +263,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
 
     #TODO for now use define initial height 2_5 as heights, replace later with recording?
     for k in range (0, len(initial_past_trajectory_base_pos)):
-      initial_past_trajectory_base_pos[k] = [initial_past_trajectory_base_pos[k][0], initial_past_trajectory_base_pos[k][1], define_initial_base_height(robot="iCubV2_5")]
+      initial_past_trajectory_base_pos[k] = [initial_past_trajectory_base_pos[k][0], initial_past_trajectory_base_pos[k][1], 0.0]
 
     # Initial past facing directions manually retrieved from a standing pose
     initial_past_trajectory_facing_dirs = [[0.9998092990492257, -0.019528582506055422],
