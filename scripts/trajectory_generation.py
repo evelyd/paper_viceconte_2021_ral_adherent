@@ -20,7 +20,6 @@ from adherent.trajectory_generation.utils import define_initial_nn_X
 from adherent.trajectory_generation.utils import define_initial_base_yaw
 from adherent.data_processing.utils import define_frontal_base_direction
 from adherent.data_processing.utils import define_frontal_chest_direction
-from adherent.trajectory_generation.utils import define_initial_base_height
 from adherent.trajectory_generation.utils import define_initial_past_trajectory
 from adherent.trajectory_generation.utils import define_initial_past_trajectory
 
@@ -90,7 +89,7 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 icub_urdf = os.path.join(script_directory, "../src/adherent/model/iCubGazeboSimpleCollisionsV2_5_xsens/iCubGazeboSimpleCollisionsV2_5_xsens.urdf")
 
 # Insert the robot in the empty world
-initial_base_height = define_initial_base_height(robot="iCubV2_5")
+initial_base_height = 0.0
 icub = iCub(world=world, urdf=icub_urdf, position=[0, 0, initial_base_height])
 
 # Show the GUI
