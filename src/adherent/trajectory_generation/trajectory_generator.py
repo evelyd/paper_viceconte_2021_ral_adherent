@@ -26,7 +26,6 @@ from adherent.trajectory_generation.utils import trajectory_blending
 from adherent.trajectory_generation.utils import load_output_mean_and_std
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
 from adherent.trajectory_generation.utils import load_component_wise_input_mean_and_std
-from adherent.trajectory_generation.utils import define_initial_base_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -870,7 +869,7 @@ class Plotter:
         plt.xlabel('Time (s)')
         plt.ylabel('Base height (m)')
         plt.xlim([0, 1])
-        plt.ylim([0.5, 0.7])
+        plt.ylim([-0.2, 0.1])
         plt.legend()
 
         # Configure facing directions plot
@@ -1128,7 +1127,7 @@ class Autoregression:
         # Extract future base positions for blending (i.e. in the plot reference frame)
         future_base_pos_plot = denormalized_current_output[0:18]
         
-        future_base_pos_blend = [[0.0, 0.0, define_initial_base_height(robot="iCubV2_5")]] #in form -y, x, z (for some reason)
+        future_base_pos_blend = [[0.0, 0.0, 0.0]] #in form -y, x, z (for some reason)
         for k in range(0, len(future_base_pos_plot), 3):
             future_base_pos_blend.append([-future_base_pos_plot[k + 1], future_base_pos_plot[k], future_base_pos_plot[k+2]])
 
@@ -1627,7 +1626,7 @@ class TrajectoryGenerator:
             else:
 
                 # If the port is empty and the previous joystick inputs are empty, return default values
-                default_base_heights = [define_initial_base_height(robot="iCubV2_5") for _ in range(len(self.autoregression.t))]
+                default_base_heights = [0 for _ in range(len(self.autoregression.t))]
                 default_quad_bezier = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_base_velocities = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_facing_dirs = [[0, 1] for _ in range(len(self.autoregression.t))]
