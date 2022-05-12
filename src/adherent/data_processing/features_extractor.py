@@ -320,7 +320,7 @@ class LocalWindowFeatures:
                 # Express them locally
                 current_reference_error = current_global_base_pos - reference_base_pos
                 current_local_base_pos_2d = facing_R_world.dot(current_reference_error[:2]) #z axis remains unchanged, no rotation, no translation in z dir
-                current_local_base_pos = np.asarray([current_local_base_pos_2d[0], current_local_base_pos_2d[1], current_global_base_pos[2]])
+                current_local_base_pos = np.asarray([current_local_base_pos_2d[0], current_local_base_pos_2d[1], current_reference_error[2]])
                 current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
