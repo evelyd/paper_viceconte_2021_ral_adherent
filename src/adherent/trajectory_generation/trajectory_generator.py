@@ -22,7 +22,7 @@ from adherent.MANN.utils import read_from_file
 from adherent.data_processing.utils import iCub
 from gym_ignition.rbd.idyntree import kindyncomputations
 from adherent.data_processing.utils import rotation_2D
-from adherent.trajectory_generation.utils import trajectory_blending
+from adherent.trajectory_generation.utils import define_initial_base_height, trajectory_blending
 from adherent.trajectory_generation.utils import load_output_mean_and_std
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
 from adherent.trajectory_generation.utils import load_component_wise_input_mean_and_std
@@ -869,7 +869,7 @@ class Plotter:
         plt.xlabel('Time (s)')
         plt.ylabel('Base height (m)')
         plt.xlim([0, 1])
-        plt.ylim([-0.2, 0.1])
+        plt.ylim([-0.2, 0.2])
         plt.legend()
 
         # Configure facing directions plot
@@ -1101,7 +1101,7 @@ class Autoregression:
             new_past_trajectory_base_positions.append(np.array([new_facing_elem[0], new_facing_elem[1], self.current_past_trajectory_base_positions[k + 1][2]]))
 
         # Add as last element the current (local) base position, where height is unchanged bc frames only move along xy plane and around z axis
-        new_past_trajectory_base_positions.append(np.array([0., 0., self.new_base_position[2]]))
+        new_past_trajectory_base_positions.append(np.array([0., 0., self.new_base_position[2] - define_initial_base_height("iCubV2_5")]))
 
         # Update past base positions
         self.new_past_trajectory_base_positions = new_past_trajectory_base_positions
@@ -1301,10 +1301,15 @@ class Autoregression:
     def autoregressive_usage_future_traj_len(self, next_nn_X: List, future_base_pos_blend_features: List) -> List:
         """Use the future length trajectory in an autoregressive fashion."""
 
+        future_base_pos_blend_features_xy = []
+        for i in range(0, len(future_base_pos_blend_features), 3):
+            future_base_pos_blend_features_xy.extend([future_base_pos_blend_features[i], future_base_pos_blend_features[i+1]])
+
         # Compute the desired future trajectory length by summing the distances between future base positions
         future_traj_length = 0
-        future_base_position_prev = future_base_pos_blend_features[0]
-        for future_base_position in future_base_pos_blend_features[1:]:
+        future_base_position_prev = future_base_pos_blend_features_xy[0]
+
+        for future_base_position in future_base_pos_blend_features_xy[1:]:
             base_position_distance = np.linalg.norm(future_base_position - future_base_position_prev)
             future_traj_length += base_position_distance
             future_base_position_prev = future_base_position

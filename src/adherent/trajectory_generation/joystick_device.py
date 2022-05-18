@@ -387,7 +387,7 @@ class JoystickDataProcessor:
         interval changes in base height, moving toward the initial base height if the crouch status is False and toward a constant 
         lower reference base height if the crouch status is True.
         """
-        initial_base_height = define_initial_base_height("iCubV2_5")
+        initial_base_height = 0.0
 
         if self.curr_crouch_status: #crouching is turned on
             base_height = initial_base_height-0.1 #-10 cm
@@ -527,7 +527,7 @@ class JoystickDataProcessor:
         plt.clf()
 
         # Plot configuration
-        base_heights_plot = plt.plot(self.t,base_heights, '-o')
+        plt.plot(self.t,base_heights, '-o')
         plt.xlabel("time (s)")
         plt.ylabel("base height (m)")
 
