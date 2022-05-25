@@ -29,7 +29,7 @@ mirroring = not args.deactivate_mirroring
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 # Define the datasets for training (both D2 and D3) and the portions of each dataset
-datasets = ["D2", "D3"]
+datasets = ["D2", "D4"]
 D2_portions = {1: "1_forward_normal_step",
                2: "2_backward_normal_step",
                3: "3_left_and_right_normal_step",
@@ -41,6 +41,14 @@ D3_portions = {6: "6_forward_small_step",
                9: "9_diagonal_small_step",
                10: "10_mixed_small_step",
                11: "11_mixed_normal_and_small_step"}
+D4_portions = {12:"12_forward_crouching_normal_step",
+               13:"13_backward_crouching_normal_step",
+               14:"14_backward_crouching_normal_step",
+               15:"15_left_crouching_normal_step",
+               16:"16_right_crouching_normal_step",
+               17:"17_diagonal_crouching_normal_step",
+               18:"18_mixed_crouching_normal_step",
+               19:"19_mixed_crouching_normal_step"}
 
 # Initialize input filenames list
 X = []
@@ -52,6 +60,8 @@ for dataset in datasets:
         inputs = D2_portions
     elif dataset == "D3":
         inputs = D3_portions
+    elif dataset == "D4":
+        inputs = D4_portions
 
     for index in inputs.keys():
         input_path = script_directory + "/../datasets/IO_features/inputs_subsampled_" + dataset + "/" + inputs[index] + "_X.txt"
@@ -76,6 +86,8 @@ for dataset in datasets:
         outputs = D2_portions
     elif dataset == "D3":
         outputs = D3_portions
+    elif dataset == "D4":
+        outputs = D4_portions
 
     for index in outputs.keys():
         output_path = script_directory + "/../datasets/IO_features/outputs_subsampled_" + dataset + "/" + outputs[index] + "_Y.txt"

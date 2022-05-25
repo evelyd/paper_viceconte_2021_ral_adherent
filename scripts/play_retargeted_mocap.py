@@ -18,11 +18,11 @@ parser.add_argument("--latest", help="Visualize the latest retargeted motion (i.
                                      "retargeted_motion.txt file)", action="store_true")
 
 # Our custom dataset is divided in two datasets: D2 and D3
-parser.add_argument("--dataset", help="Select a dataset between D2 and D3.", type=str, default="D2")
+parser.add_argument("--dataset", help="Select a dataset between D2, D3 and D4.", type=str, default="D2")
 
-# Each dataset is divided into portions. D2 includes portions [1,5]. D3 includes portions [6,11].
+# Each dataset is divided into portions. D2 includes portions [1,5]. D3 includes portions [6,11]. D4 includes portions [12,19].
 parser.add_argument("--portion", help="Select a portion of the chosen dataset. Available choices: from 1 to 5 for D2,"
-                                      "from 6 to 11 for D3.", type=int, default=1)
+                                      "from 6 to 11 for D3, from 12 to 19 for D4.", type=int, default=1)
 
 # Each portion of each dataset has been retargeted as it is or mirrored. Select if you want to visualize the mirrored version
 parser.add_argument("--mirrored", help="Visualize the mirrored version of the selected dataset portion.", action="store_true")
@@ -61,6 +61,19 @@ else:
         retargeted_mocaps = {6:"6_forward_small_step",7:"7_backward_small_step",8:"8_left_and_right_small_step",
                              9:"9_diagonal_small_step",10:"10_mixed_small_step",11:"11_mixed_normal_and_small_step"}
         limits = {6: [1500, 28500], 7: [1750, 34000], 8: [2900, 36450], 9: [1250, 17050], 10: [1450, 78420], 11: [1600, 61350]}
+    elif dataset == "D4":
+        #the good backward step is 14, since it is longer (the first one we realized the thigh sensor had fallen at the end)
+        #both 18 and 19 are mixed walking, and both are good (combined it's about 15 min of data), just the end of the first 
+        # one is invalid because the thigh sensor fell
+        #in 18, starting at around -15000, the right leg seems to be dragging behind the left. this may have been when the 
+        # right thigh sensor started to fall
+
+        retargeted_mocaps = {12:"12_forward_crouching_normal_step",13:"13_backward_crouching_normal_step",
+                             14:"14_backward_crouching_normal_step",15:"15_left_crouching_normal_step",
+                             16:"16_right_crouching_normal_step",17:"17_diagonal_crouching_normal_step",
+                             18:"18_mixed_crouching_normal_step",19:"19_mixed_crouching_normal_step"}
+        limits = {12: [1500, 29050], 13: [750, -340], 14: [580, -350], 15: [650, -175], 16: [650, -400], 17: [700, -450], 
+                  18: [600, -15000], 19: [975, -250]}
     initial_frame = limits[retargeted_mocap_index][0]
     final_frame = limits[retargeted_mocap_index][1]
 
