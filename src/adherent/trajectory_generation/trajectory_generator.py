@@ -1101,7 +1101,7 @@ class Autoregression:
             new_past_trajectory_base_positions.append(np.array([new_facing_elem[0], new_facing_elem[1], self.current_past_trajectory_base_positions[k + 1][2]]))
 
         # Add as last element the current (local) base position, where height is unchanged bc frames only move along xy plane and around z axis
-        new_past_trajectory_base_positions.append(np.array([0., 0., self.new_base_position[2] - define_initial_base_height("iCubV2_5")]))
+        new_past_trajectory_base_positions.append(np.array([0., 0., self.new_base_position[2] - define_initial_base_height("iCubV2_5")+0.008]))
 
         # Update past base positions
         self.new_past_trajectory_base_positions = new_past_trajectory_base_positions
