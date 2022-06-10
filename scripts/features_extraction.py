@@ -30,6 +30,7 @@ parser.add_argument("--mirrored", help="Visualize the mirrored version of the se
 # Plot configuration
 parser.add_argument("--plot_global", help="Visualize the computed global features.",action="store_true")
 parser.add_argument("--plot_local", help="Visualization the computed local features.",action="store_true")
+parser.add_argument("--plot_com", help="Visualization the CoM over the whole dataset.",action="store_true")
 
 # Store configuration
 parser.add_argument("--save", help="Store the network input and output vectors in json format.",action="store_true")
@@ -41,6 +42,7 @@ retargeted_mocap_index = args.portion
 mirrored = args.mirrored
 plot_global = args.plot_global
 plot_local = args.plot_local
+plot_com = args.plot_com
 store_as_json = args.save
 
 # ====================
@@ -169,6 +171,20 @@ if store_as_json:
     print("Output features have been saved in", output_path)
 
 # =======================================================
+# VISUALIZE THE COM POSITION OVER THE WHOLE DATASET
+# =======================================================
+
+if plot_com:
+
+    input("Press Enter to start the overall visualization of the CoM")
+    utils.visualize_com_positions(ik_solutions=ik_solutions,
+                                  icub=icub,
+                                  kindyn=kindyn,
+                                  world=world,
+                                  controlled_joints=controlled_joints,
+                                  gazebo=gazebo)
+
+# =======================================================
 # VISUALIZE THE RETARGETED MOTION AND THE GLOBAL FEATURES
 # =======================================================
 
@@ -178,6 +194,8 @@ if plot_global:
     utils.visualize_global_features(global_window_features=extractor.get_global_window_features(),
                                     ik_solutions=ik_solutions,
                                     icub=icub,
+                                    kindyn=kindyn,
+                                    world=world,
                                     controlled_joints=controlled_joints,
                                     gazebo=gazebo)
 

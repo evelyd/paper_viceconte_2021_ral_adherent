@@ -9,6 +9,8 @@ from typing import List
 from scenario import core
 from scenario import gazebo as scenario
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import IKSolution
+from gym_ignition.rbd.idyntree import kindyncomputations
+
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -178,7 +180,7 @@ def visualize_retargeted_motion(timestamps: List,
     timestamp_prev = -1
 
     for i in range(1, len(ik_solutions)):
-
+        print(i, "/", len(ik_solutions))
         ik_solution = ik_solutions[i]
 
         # Retrieve the base pose and the joint positions, based on the type of ik_solution
@@ -207,6 +209,93 @@ def visualize_retargeted_motion(timestamps: List,
 
     print("Visualization ended")
     time.sleep(1)
+
+def visualize_com_positions(ik_solutions: List,
+                            icub: iCub,
+                            kindyn: kindyncomputations.KinDynComputations,
+                            world: scenario.World,
+                            controlled_joints: List,
+                            gazebo: scenario.GazeboSimulator) -> None:
+
+    print(len(ik_solutions))
+    comxs = np.empty(len(ik_solutions)-1)
+    comzs = np.empty(len(ik_solutions)-1)
+    head_hts = np.empty(len(ik_solutions)-1)
+    for i in range(1,len(ik_solutions)):
+        # =================
+        # COM POSITIONS
+        # =================
+        ik_solution = ik_solutions[i]
+
+        # Retrieve the base pose and the joint positions
+        joint_positions = np.asarray(ik_solution["joint_positions"])
+        base_position = np.asarray(ik_solution["base_position"])
+        base_quaternion = np.asarray(ik_solution["base_quaternion"])
+
+        # Reset the base pose and the joint positions
+        icub.to_gazebo().reset_base_pose(base_position, base_quaternion)
+        icub.to_gazebo().reset_joint_positions(joint_positions, controlled_joints)
+        gazebo.run(paused=True)
+        #go through and get com for each step
+        kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravity()))
+        com = kindyn.get_com_position()
+        comxs[i-1] = com[0]
+        comzs[i-1] = com[2]
+
+        # =================
+        # HEAD HEIGHTS (could also check x pos later)
+        # =================
+        # Compute head height wrt the world frame
+        world_H_base = kindyn.get_world_base_transform()
+        base_H_head = kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
+        W_H_head = world_H_base.dot(base_H_head)
+        W_head_ht = W_H_head[2, -1]
+        head_hts[i-1] = W_head_ht
+        
+    # Figure 1 for com positions
+    # plt.figure(1)
+    # plt.clf()
+
+    # # print(coms)
+    # #Plot all 3 dims of CoM
+    # plt.plot(range(1,len(ik_solutions)), comxs, c='r', label='CoM x')
+    # plt.plot(range(1,len(ik_solutions)), comzs, c='k', label='CoM z')
+
+    # plt.grid(True)
+    # ax = plt.gca()
+    # ax.set_xlim([500, 1000])
+    # ax.set_ylim([ymin, ymax])
+
+    # Figure 2 for com positions
+    plt.figure(2)
+    plt.clf()
+
+    #Plot head height
+    plt.plot(range(1,len(ik_solutions)), head_hts, c='r', label='Head z')
+    plt.axvline(x=1)
+    plt.axvline(x=770)
+    plt.axvline(x=2200)
+    plt.axvline(x=3300)
+    plt.axvline(x=6300)
+    plt.axvline(x=10700)
+    plt.axvline(x=11600)
+    plt.axvline(x=14100)
+    plt.axvline(x=16700)
+    plt.axvline(x=17900)
+    plt.axvline(x=19600)
+    plt.axvline(x=24400)
+    plt.axvline(x=27000)
+    plt.axvline(x=28100)
+    plt.axvline(x=30300)
+
+    plt.grid(True)
+    ax = plt.gca()
+    # ax.set_xlim([500, 1000])
+    # ax.set_ylim([ymin, ymax])
+
+    # Plot
+    plt.show()
+    plt.pause(0.0001)
 
 def visualize_global_features(global_window_features,
                               ik_solutions: List,
