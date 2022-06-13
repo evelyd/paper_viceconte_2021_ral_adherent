@@ -14,7 +14,6 @@ from typing import List, Dict, BinaryIO
 from dataclasses import dataclass, field
 from adherent.trajectory_generation.utils import quadratic_bezier
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
-from adherent.trajectory_generation.utils import define_initial_base_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -369,36 +368,36 @@ class JoystickDataProcessor:
 
     def process_joystick_inputs(self) -> (list, list, list, list):
         """Process the joystick inputs in order to retrieve the desired future ground trajectory specified by:
-           - a line of future base heights (base_heights)
+           - a line of future head heights (head_heights)
            - a quadratic Bezier curve of future base positions (quad_bezier)
            - a series of desired base velocities associated to the base positions in the Bezier curve (base_velocities)
            - a series of desired facing directions associated to the base positions in the Bezier curve (facing_dirs)
         """
 
-        base_heights = self.compute_base_heights()
+        head_heights = self.compute_head_heights()
         quad_bezier = self.compute_quadratic_bezier()
         base_velocities = self.compute_base_velocities(quad_bezier)
         facing_dirs = self.compute_facing_directions(quad_bezier)
 
-        return base_heights, quad_bezier, base_velocities, facing_dirs
+        return head_heights, quad_bezier, base_velocities, facing_dirs
 
-    def compute_base_heights(self) -> List:
-        """Compute a linear array (vs. time) of future base heights based on the desired crouch status. The array will contain fixed
-        interval changes in base height, moving toward the initial base height if the crouch status is False and toward a constant 
-        lower reference base height if the crouch status is True.
+    def compute_head_heights(self) -> List:
+        """Compute a linear array (vs. time) of future head heights based on the desired crouch status. The array will contain fixed
+        interval changes in head height, moving toward the average upright walking head height if the crouch status is False and toward a constant 
+        lower reference head height if the crouch status is True.
         """
-        initial_base_height = 0.0
+        upright_walking_head_height = 0.0 #this is nominal, measure from avg upright walking head height
 
         if self.curr_crouch_status: #crouching is turned on
-            base_height = initial_base_height-0.1 #-10 cm
+            head_height = upright_walking_head_height-0.07 #-7 cm (number based on eyeballed difference in dataset TODO)
 
         else: #crouching is turned off
-            base_height = initial_base_height #same as initial position
+            head_height = upright_walking_head_height #same as upright position
 
-        # Compute the array of future base heights, all of which are the same value depending on whether crouching is enabled or not
-        base_heights = (base_height*np.ones(self.t.size)).tolist()
+        # Compute the array of future head heights, all of which are the same value depending on whether crouching is enabled or not
+        head_height = (head_height*np.ones(self.t.size)).tolist()
 
-        return base_heights
+        return head_height
 
     def compute_quadratic_bezier(self) -> List:
         """Compute a quadratic Bezier curve of future base positions from the joystick inputs. The last point of such
@@ -491,7 +490,7 @@ class JoystickDataProcessor:
 
     def send_data(self,
                   output_port: yarp.BufferedPortBottle,
-                  base_heights: List,
+                  head_heights: List,
                   quad_bezier: List,
                   base_velocities: List,
                   facing_dirs: List,
@@ -499,7 +498,7 @@ class JoystickDataProcessor:
         """Send raw and processed joystick data through YARP."""
 
         # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
-        # 0-6 are base_heights (z)
+        # 0-6 are head_heights (z)
         # 7-20 are quad_bezier (x,y)
         # 21-34 are base_velocities (x,y)
         # 35-48 are facing_dirs (x,y)
@@ -508,7 +507,7 @@ class JoystickDataProcessor:
         # Add data to be sent through the YARP port
         bottle = output_port.prepare()
         bottle.clear()
-        for coord in base_heights:
+        for coord in head_heights:
             bottle.addFloat32(coord)
         for data in [quad_bezier, base_velocities, facing_dirs]:
             for elem in data:
@@ -520,16 +519,16 @@ class JoystickDataProcessor:
         # Send data through the YARP port
         output_port.write()
 
-    def plot_base_heights(self, base_heights: list) -> None:
-        """Visualize the desired base height (i.e. crouch status) over time."""
+    def plot_head_heights(self, head_heights: list) -> None:
+        """Visualize the desired head height (i.e. crouch status) over time."""
 
         plt.figure(1)
         plt.clf()
 
         # Plot configuration
-        plt.plot(self.t,base_heights, '-o')
+        plt.plot(self.t,head_heights, '-o')
         plt.xlabel("time (s)")
-        plt.ylabel("base height (m)")
+        plt.ylabel("head height (m)")
 
     def plot_motion_direction(self) -> None:
         """Visualize the current motion direction."""

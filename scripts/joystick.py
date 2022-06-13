@@ -68,11 +68,11 @@ while True:
     if plot_i % plot_rate == 0:
 
         # Process the joystick data
-        base_heights, quad_bezier, base_velocities, facing_dirs = joystick.process_joystick_inputs()
+        head_heights, quad_bezier, base_velocities, facing_dirs = joystick.process_joystick_inputs()
 
         # Send data to the trajectory generator through the YARP port
         joystick.send_data(output_port=p_out,
-                           base_heights=base_heights,
+                           head_heights=head_heights,
                            quad_bezier=quad_bezier,
                            base_velocities=base_velocities,
                            facing_dirs=facing_dirs,
@@ -80,7 +80,7 @@ while True:
 
 
         # Plot the base height over time
-        joystick.plot_base_heights(base_heights=base_heights)
+        joystick.plot_head_heights(head_heights=head_heights)
 
         # Plot the motion direction
         joystick.plot_motion_direction()
