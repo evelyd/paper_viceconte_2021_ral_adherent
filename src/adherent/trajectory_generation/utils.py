@@ -161,23 +161,15 @@ def define_initial_nn_X(robot: str) -> List:
         raise Exception("Initial network input X only defined for iCubV2_5.")
 
     # Initial input manually retrieved from a standing pose
-    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, 0.0,
-                     0.2088665596830631, -0.0021020581878808007, 0.0,
-                     0.20531231168918174, -0.0008621646186016302, 0.0,
-                     0.2038031784172399, 0.0006000018873639539, 0.0,
-                     0.20492310200003655, 0.00219387868363895, 0.0,
-                     0.0, 0.0, 0.0,
-                     -0.2861243642562259, 0.009288430936687906, 0.0,
-                     -0.31823372134674327, 0.0041163061304422335, 0.0,
-                     -0.3351330296979504, 0.00013665165796125482, 0.0,
-                     -0.32760743228415534, 0.0013394518793597135, 0.0,
-                     -0.28954434529500506, -0.002034172225900831, 0.0,
-                     -0.22271595678165187, -0.007108432655308732, 0.0,
-                     0.4874557110316117, -0.060262978658173996,
-                     0.483219430286254, -0.05549580293883961, 
-                     0.48355811354675093, -0.05073190069674229,
-                     0.48430037825453315, -0.0463878541965186, 
-                     0.47622379318033997, -0.042673799121161156, 0.0,
+    initial_nn_X = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, #these are the nominal head heights, that's why they are 0 TODO replace with measurements
+                     0.2119528955450237, -0.0030393414305661757, 0.2088665596830631, -0.0021020581878808007,
+                     0.20531231168918174, -0.0008621646186016302, 0.2038031784172399, 0.0006000018873639539,
+                     0.20492310200003655, 0.00219387868363895, 0.0, 0.0, -0.2861243642562259, 0.009288430936687906,
+                     -0.31823372134674327, 0.0041163061304422335, -0.3351330296979504, 0.00013665165796125482,
+                     -0.32760743228415534, 0.0013394518793597135, -0.28954434529500506, -0.002034172225900831,
+                     -0.22271595678165187, -0.007108432655308732, 0.4874557110316117, -0.060262978658173996,
+                     0.483219430286254, -0.05549580293883961, 0.48355811354675093, -0.05073190069674229,
+                     0.48430037825453315, -0.0463878541965186, 0.47622379318033997, -0.042673799121161156, 0.0,
                      -0.001670958751021921, 0.48823702730673707, -0.012628077673047147, 0.4985278001448309,
                      -0.017930827973037217, 0.4894521106023875, -0.013467714394521855, 0.48597445992611943,
                      -0.004418383745209343, 0.4891737721962037, -0.0006736504004182218, 0.4998745767668644,
@@ -207,6 +199,14 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
         raise Exception("Initial past trajectory data only defined for iCubV2_5.")
 
     # The above quantities are expressed in the frame specified by the initial base position and the facing direction
+
+    # Initial past head heights manually retrieved from a standing pose
+    initial_past_trajectory_head_ht = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                       0.0] #TODO replace with measured vals
 
     # Initial past base positions manually retrieved from a standing pose
     initial_past_trajectory_base_pos = [[-0.0006781887991487454, 0.0005382023957937025],
@@ -260,10 +260,6 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
                                 [-2.733307550666302e-05, 2.1273139149335884e-05],
                                 [-1.3662890395487173e-05, 1.063469931815647e-05],
                                 [0.0, 0.0]]
-
-    #TODO for now use define initial height 2_5 as heights, replace later with recording?
-    for k in range (0, len(initial_past_trajectory_base_pos)):
-      initial_past_trajectory_base_pos[k] = [initial_past_trajectory_base_pos[k][0], initial_past_trajectory_base_pos[k][1], 0.0]
 
     # Initial past facing directions manually retrieved from a standing pose
     initial_past_trajectory_facing_dirs = [[0.9998092990492257, -0.019528582506055422],
@@ -371,7 +367,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
                                 [0.0027292570019628926, -0.003613289208665431],
                                 [0.0027306743709001454, -0.003612217655202784]]
 
-    return initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
+    return initial_past_trajectory_head_ht, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
 
 def define_initial_base_height(robot: str) -> List:
     """Define the robot-specific initial height of the base frame."""
@@ -382,6 +378,16 @@ def define_initial_base_height(robot: str) -> List:
     initial_base_height = 0.6354
 
     return initial_base_height
+
+def define_reference_head_height(robot: str) -> List:
+    """Define the robot-specific initial head height of the base frame."""
+
+    if robot != "iCubV2_5":
+        raise Exception("Reference head height only defined for iCubV2_5.")
+
+    reference_head_height = 0.86 #TODO replace with a measured average value
+
+    return reference_head_height
 
 def define_initial_base_yaw(robot: str) -> List:
     """Define the robot-specific initial base yaw expressed in the world frame."""
@@ -421,10 +427,14 @@ def load_component_wise_input_mean_and_std(datapath: str) -> (Dict, Dict):
             Xstd[i] = 1
 
     # Retrieve component-wise input mean and std (used to normalize the next input for the network)
-    Xmean_dict = {"past_base_positions": Xmean[0:18]}
-    Xstd_dict = {"past_base_positions": Xstd[0:18]}
-    Xmean_dict["future_base_positions"] = Xmean[18:36]
-    Xstd_dict["future_base_positions"] = Xstd[18:36]
+    Xmean_dict = {"past_head_heights": Xmean[0:6]}
+    Xstd_dict = {"past_head_heights": Xstd[0:6]}
+    Xmean_dict["future_head_heights"] = Xmean[6:12]
+    Xstd_dict["future_head_heights"] = Xstd[6:12]
+    Xmean_dict["past_base_positions"] = Xmean[12:24]
+    Xstd_dict["past_base_positions"] = Xstd[12:24]
+    Xmean_dict["future_base_positions"] = Xmean[24:36]
+    Xstd_dict["future_base_positions"] = Xstd[24:36]
     Xmean_dict["past_facing_directions"] = Xmean[36:48]
     Xstd_dict["past_facing_directions"] = Xstd[36:48]
     Xmean_dict["future_facing_directions"] = Xmean[48:60]

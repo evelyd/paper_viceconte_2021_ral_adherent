@@ -22,10 +22,11 @@ from adherent.MANN.utils import read_from_file
 from adherent.data_processing.utils import iCub
 from gym_ignition.rbd.idyntree import kindyncomputations
 from adherent.data_processing.utils import rotation_2D
-from adherent.trajectory_generation.utils import define_initial_base_height, trajectory_blending
+from adherent.trajectory_generation.utils import trajectory_blending
 from adherent.trajectory_generation.utils import load_output_mean_and_std
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
 from adherent.trajectory_generation.utils import load_component_wise_input_mean_and_std
+from adherent.trajectory_generation.utils import define_reference_head_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -45,7 +46,7 @@ class StorageHandler:
     # Storage dictionaries for footsteps, postural, joystick input and blending coefficients
     footsteps: Dict = field(default_factory=lambda: {'l_foot': [], 'r_foot': []})
     posturals: Dict = field(default_factory=lambda: {'base': [], 'joints': [], 'links': [], 'com': []})
-    joystick_inputs: Dict = field(default_factory=lambda: {'raw_data': [], 'base_heights': [], 'quad_bezier': [], 'base_velocities': [], 'facing_dirs': []})
+    joystick_inputs: Dict = field(default_factory=lambda: {'raw_data': [], 'head_heights': [], 'quad_bezier': [], 'base_velocities': [], 'facing_dirs': []})
     blending_coeffs: Dict = field(default_factory=lambda: {'w_1': [], 'w_2': [], 'w_3': [], 'w_4': []})
 
     @staticmethod
@@ -63,11 +64,11 @@ class StorageHandler:
                               joystick_input_path,
                               blending_coefficients_path)
 
-    def update_joystick_inputs_storage(self, raw_data: List, base_heights: List, quad_bezier: List, base_velocities: List, facing_dirs: List) -> None:
+    def update_joystick_inputs_storage(self, raw_data: List, head_heights: List, quad_bezier: List, base_velocities: List, facing_dirs: List) -> None:
         """Update the storage of the joystick inputs."""
 
         self.joystick_inputs["raw_data"].append(raw_data)
-        self.joystick_inputs["base_heights"].append(base_heights)
+        self.joystick_inputs["head_heights"].append(head_heights)
         self.joystick_inputs["quad_bezier"].append(quad_bezier)
         self.joystick_inputs["base_velocities"].append(base_velocities)
         self.joystick_inputs["facing_dirs"].append(facing_dirs)
@@ -674,68 +675,62 @@ class Plotter:
         plt.title("Footsteps")
 
     @staticmethod
-    def plot_predicted_future_trajectory(figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int, denormalized_current_output: List) -> None:
+    def plot_predicted_future_trajectory(figure_head_heights: int, figure_facing_dirs: int, figure_base_vel: int, denormalized_current_output: List) -> None:
         """Plot the future trajectory predicted by the network (magenta)."""
     
-        # Retrieve predicted base positions, facing directions and base velocities from the denormalized network output
-        predicted_base_pos = denormalized_current_output[0:18]
+        # Retrieve predicted head heights, base positions, facing directions and base velocities from the denormalized network output
+        predicted_head_ht = denormalized_current_output[0:6]
+        predicted_base_pos = denormalized_current_output[6:18]
         predicted_facing_dirs = denormalized_current_output[18:30]
         predicted_base_vel = denormalized_current_output[30:42]
 
-        predicted_base_heights = []
-        predicted_base_xy = []
+        plt.figure(figure_head_heights)
 
-        plt.figure(figure_base_heights)
-
-        for k in range(0, len(predicted_base_pos), 3):
-            base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
-            predicted_base_xy.append(base_position)
-            predicted_base_heights.append(predicted_base_pos[k+2])
-
-        # Plot base heights over time
-        plt.scatter(np.linspace(1/6, 1, 6), predicted_base_heights, c='m', label="Predicted future trajectory")
+        # Plot head heights over time
+        plt.scatter(np.linspace(1/6, 1, 6), predicted_head_ht, c='m', label="Predicted future trajectory")
 
         plt.figure(figure_facing_dirs)
 
-        i = 0
-        for k in range(0, len(predicted_facing_dirs), 2):
-            # Plot facing directions (scaled for visualization purposes)
-            facing_direction = [predicted_facing_dirs[k] / 10, predicted_facing_dirs[k + 1] / 10]
-            plt.plot([-predicted_base_xy[i][1], -predicted_base_xy[i][1] - facing_direction[1]],
-                     [predicted_base_xy[i][0], predicted_base_xy[i][0] + facing_direction[0]],
-                     'm')
-            i += 1
-
-        plt.figure(figure_base_vel)
-
-        for k in range(0, len(predicted_base_pos), 3):
+        for k in range(0, len(predicted_base_pos), 2):
 
             # Plot base positions
             base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
             plt.scatter(-base_position[1], base_position[0], c='m')
 
-        i = 0
-        for k in range(0, len(predicted_base_vel), 2):
+            # Plot facing directions (scaled for visualization purposes)
+            facing_direction = [predicted_facing_dirs[k] / 10, predicted_facing_dirs[k + 1] / 10]
+            plt.plot([-base_position[1], -base_position[1] - facing_direction[1]],
+                     [base_position[0], base_position[0] + facing_direction[0]],
+                     'm')
+
+
+        plt.figure(figure_base_vel)
+
+        for k in range(0, len(predicted_base_pos), 2):
+
+            # Plot base positions
+            base_position = [predicted_base_pos[k], predicted_base_pos[k + 1]]
+            plt.scatter(-base_position[1], base_position[0], c='m')
+
             # Plot base velocities (scaled for visualization purposes)
             base_velocity = [predicted_base_vel[k] / 10, predicted_base_vel[k + 1] / 10]
-            plt.plot([-predicted_base_xy[i][1], -predicted_base_xy[i][1] - base_velocity[1]],
-                     [predicted_base_xy[i][0], predicted_base_xy[i][0] + base_velocity[0]],
+            plt.plot([-base_position[1], -base_position[1] - base_velocity[1]],
+                     [base_position[0], base_position[0] + base_velocity[0]],
                      'm')
-            i += 1
 
     @staticmethod
-    def plot_desired_future_trajectory(figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int,
-                                       base_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List) -> None:
+    def plot_desired_future_trajectory(figure_head_heights: int, figure_facing_dirs: int, figure_base_vel: int,
+                                       head_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List) -> None:
         """Plot the future trajectory built from user inputs (gray)."""
 
         # Retrieve components for plotting
         quad_bezier_x = [elem[0] for elem in quad_bezier]
         quad_bezier_y = [elem[1] for elem in quad_bezier]
 
-        plt.figure(figure_base_heights)
+        plt.figure(figure_head_heights)
 
         # Plot base heights
-        plt.scatter(np.linspace(0, 1, 7), base_heights, c='gray', label="Desired future trajectory")
+        plt.scatter(np.linspace(0, 1, 7), head_heights, c='gray', label="Desired future trajectory")
 
         plt.figure(figure_facing_dirs)
 
@@ -760,19 +755,18 @@ class Plotter:
                      c='gray')
 
     @staticmethod
-    def plot_blended_future_trajectory(figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int, blended_base_positions: List,
-                                       blended_facing_dirs: List, blended_base_velocities: List) -> None:
+    def plot_blended_future_trajectory(figure_head_heights: int, figure_facing_dirs: int, figure_base_vel: int, blended_head_heights: List,
+                                       blended_base_positions: List, blended_facing_dirs: List, blended_base_velocities: List) -> None:
         """Plot the future trajectory obtained by blending the network output and the user input (green)."""
 
         # Extract components for plotting
         blended_base_positions_x = [elem[0] for elem in blended_base_positions]
         blended_base_positions_y = [elem[1] for elem in blended_base_positions]
-        blended_base_positions_z = [elem[2] for elem in blended_base_positions]
 
-        plt.figure(figure_base_heights)
+        plt.figure(figure_head_heights)
 
         # Plot base heights
-        plt.scatter(np.linspace(0, 1, 7), blended_base_positions_z, c='g', label="Blended future trajectory")
+        plt.scatter(np.linspace(0, 1, 7), blended_head_heights, c='g', label="Blended future trajectory")
 
         plt.figure(figure_facing_dirs)
 
@@ -796,13 +790,13 @@ class Plotter:
                      [blended_base_positions_y[k], blended_base_positions_y[k] + blended_base_velocities[k][1] / 10],
                      c='g')
 
-    def plot_trajectory_blending(self, figure_base_heights: int, figure_facing_dirs: int, figure_base_vel: int, denormalized_current_output: List,
-                                 base_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List, blended_base_positions: List,
-                                 blended_facing_dirs: List, blended_base_velocities: List) -> None:
+    def plot_trajectory_blending(self, figure_head_heights: int, figure_facing_dirs: int, figure_base_vel: int, denormalized_current_output: List,
+                                 head_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List, blended_head_heights: List,
+                                 blended_base_positions: List, blended_facing_dirs: List, blended_base_velocities: List) -> None:
         """Plot the predicted, desired and blended future ground trajectories used to build the next network input."""
 
         # Base heights plot
-        plt.figure(figure_base_heights)
+        plt.figure(figure_head_heights)
         plt.clf()
 
         # Facing directions plot
@@ -850,24 +844,25 @@ class Plotter:
         plt.plot(x_coord, -y_coord, 'k')
 
         # Plot the future trajectory predicted by the network
-        self.plot_predicted_future_trajectory(figure_base_heights=figure_base_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
+        self.plot_predicted_future_trajectory(figure_head_heights=figure_head_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
                                               denormalized_current_output=denormalized_current_output)
 
         # Plot the future trajectory built from user inputs
-        self.plot_desired_future_trajectory(figure_base_heights=figure_base_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
-                                            base_heights=base_heights, quad_bezier=quad_bezier, facing_dirs=facing_dirs, base_velocities=base_velocities)
+        self.plot_desired_future_trajectory(figure_head_heights=figure_head_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
+                                            head_heights=head_heights, quad_bezier=quad_bezier, facing_dirs=facing_dirs, base_velocities=base_velocities)
 
         # Plot the future trajectory obtained by blending the network output and the user input
-        self.plot_blended_future_trajectory(figure_base_heights=figure_base_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
+        self.plot_blended_future_trajectory(figure_head_heights=figure_head_heights, figure_facing_dirs=figure_facing_dirs, figure_base_vel=figure_base_vel,
+                                            blended_head_heights=blended_head_heights,
                                             blended_base_positions=blended_base_positions,
                                             blended_facing_dirs=blended_facing_dirs,
                                             blended_base_velocities=blended_base_velocities)
 
-        # Configure base heights plot
-        plt.figure(figure_base_heights)
-        plt.title("BASE HEIGHTS OVER TIME")
+        # Configure head heights plot
+        plt.figure(figure_head_heights)
+        plt.title("HEAD HEIGHTS OVER TIME")
         plt.xlabel('Time (s)')
-        plt.ylabel('Base height (m)')
+        plt.ylabel('Head height (m)')
         plt.xlim([0, 1])
         plt.ylim([-0.2, 0.2])
         plt.legend()
@@ -985,6 +980,7 @@ class Autoregression:
 
     # Variables to store autoregression-relevant information for the current iteration
     current_nn_X: List
+    current_past_trajectory_head_heights: List
     current_past_trajectory_base_positions: List
     current_past_trajectory_facing_directions: List
     current_past_trajectory_base_velocities: List
@@ -996,9 +992,11 @@ class Autoregression:
 
     # Variables to store autoregression-relevant information for the next iteration
     next_nn_X: List = field(default_factory=list)
+    new_past_trajectory_head_heights: List = field(default_factory=list)
     new_past_trajectory_base_positions: List = field(default_factory=list)
     new_past_trajectory_facing_directions: List = field(default_factory=list)
     new_past_trajectory_base_velocities: List = field(default_factory=list)
+    new_head_height: List = field(default_factory=list)
     new_base_position: List = field(default_factory=list)
     new_facing_direction: List = field(default_factory=list)
     new_world_R_facing: List = field(default_factory=list)
@@ -1018,6 +1016,7 @@ class Autoregression:
     @staticmethod
     def build(training_path: str,
               initial_nn_X: List,
+              initial_past_trajectory_head_hts: List,
               initial_past_trajectory_base_pos: List,
               initial_past_trajectory_facing_dirs: List,
               initial_past_trajectory_base_vel: List,
@@ -1045,14 +1044,19 @@ class Autoregression:
                               tau_base_velocities=tau_base_velocities,
                               nn_X_difference_norm_threshold=nn_X_difference_norm_threshold,
                               current_nn_X=initial_nn_X,
+                              current_past_trajectory_head_heights=initial_past_trajectory_head_hts,
                               current_past_trajectory_base_positions=initial_past_trajectory_base_pos,
                               current_past_trajectory_facing_directions=initial_past_trajectory_facing_dirs,
                               current_past_trajectory_base_velocities=initial_past_trajectory_base_vel,
                               current_base_position=np.array([0, 0, initial_base_height]),
                               current_base_yaw=initial_base_yaw)
 
-    def update_reference_frame(self, world_H_base: np.array, base_H_chest: np.array) -> None:
+    def update_reference_frame(self, world_H_base: np.array, base_H_chest: np.array, base_H_head: np.array) -> None:
         """Update the local reference frame given by the new base position and the new facing direction."""
+
+        # Store new head height
+        W_H_head = world_H_base.dot(base_H_head)
+        self.new_head_height = W_H_head[2, -1]
 
         # Store new base position
         self.new_base_position = world_H_base[0:3, -1]
@@ -1080,8 +1084,74 @@ class Autoregression:
         self.new_world_R_facing = rotation_2D(new_facing_direction_yaw)
         self.new_facing_R_world = np.linalg.inv(self.new_world_R_facing)
 
+    def autoregressive_usage_head_heights(self, next_nn_X: List, denormalized_current_output: np.array,
+                                            head_heights: List) -> (List, List, List):
+        """Use the head heights in an autoregressive fashion."""
+
+        # ===================
+        # PAST HEAD HEIGHTS
+        # ===================
+    
+        # Update the full window storing the past head heights
+        new_past_trajectory_head_heights = []
+        for k in range(len(self.current_past_trajectory_head_heights) - 1):
+            # Element in the reference frame defined by the previous base position, compared to the reference height value TODO
+            facing_elem = self.current_past_trajectory_head_heights[k + 1]
+            # Store updated element
+            new_past_trajectory_head_heights.append(facing_elem)
+
+        # Add as last element the current (local) head height
+        new_past_trajectory_head_heights.append(self.new_head_height - define_reference_head_height("iCubV2_5"))
+
+        # Update past head heights
+        self.new_past_trajectory_head_heights = new_past_trajectory_head_heights
+
+        # Extract compressed window of past head heights (denormalized for plotting)
+        past_head_heights_plot = []
+        for index in self.past_window_indexes:
+            past_head_heights_plot.append(self.new_past_trajectory_head_heights[index])
+
+        # Extract compressed window of past head heights (normalized for building the next input)
+        past_head_heights = past_head_heights_plot.copy()
+
+        for k in range(len(past_head_heights)):
+            past_head_heights[k] = (past_head_heights[k] - self.Xmean_dict["past_head_heights"][k]) / \
+                                    self.Xstd_dict["past_head_heights"][k]
+
+        # Add the compressed window of normalized past head heights to the next input
+        next_nn_X.extend(past_head_heights)
+        # =====================
+        # FUTURE HEAD HEIGHTS
+        # =====================
+
+        # Extract future head heights for blending (i.e. in the plot reference frame)
+        future_head_ht_plot = denormalized_current_output[0:6]
+        future_head_ht_blend = [0.0]
+        for k in range(0, len(future_head_ht_plot)):
+            future_head_ht_blend.append(future_head_ht_plot[k])
+
+        # Blend user-specified and network-predicted future head heights
+        blended_head_heights = trajectory_blending(future_head_ht_blend, head_heights, self.t, self.tau_base_positions)
+
+        # Reshape blended future head heights
+        future_head_hts_blend_features = []
+        for k in range(1, len(blended_head_heights)):
+            future_head_hts_blend_features.append(blended_head_heights[k])
+
+        # Normalize blended future head heights
+        future_head_hts_blend_features_normalized = future_head_hts_blend_features.copy()
+        for k in range(len(future_head_hts_blend_features_normalized)):
+            future_head_hts_blend_features_normalized[k] = (future_head_hts_blend_features_normalized[k] -
+                                                               self.Xmean_dict["future_head_heights"][k]) / \
+                                                              self.Xstd_dict["future_head_heights"][k]
+
+        # Add the normalized blended future head heights to the next input
+        next_nn_X.extend(future_head_hts_blend_features_normalized)
+
+        return next_nn_X, blended_head_heights
+
     def autoregressive_usage_base_positions(self, next_nn_X: List, denormalized_current_output: np.array,
-                                            base_heights: List, quad_bezier: List) -> (List, List, List):
+                                            quad_bezier: List) -> (List, List, List):
         """Use the base positions in an autoregressive fashion."""
 
         # ===================
@@ -1092,16 +1162,16 @@ class Autoregression:
         new_past_trajectory_base_positions = []
         for k in range(len(self.current_past_trajectory_base_positions) - 1):
             # Element in the reference frame defined by the previous base position + facing direction
-            facing_elem = self.current_past_trajectory_base_positions[k + 1][:2]
+            facing_elem = self.current_past_trajectory_base_positions[k + 1]
             # Express element in world frame
             world_elem = self.current_world_R_facing.dot(facing_elem) + self.current_ground_base_position
             # Express element in the frame defined by the new base position + facing direction
             new_facing_elem = self.new_facing_R_world.dot(world_elem - self.new_ground_base_position)
             # Store updated element
-            new_past_trajectory_base_positions.append(np.array([new_facing_elem[0], new_facing_elem[1], self.current_past_trajectory_base_positions[k + 1][2]]))
+            new_past_trajectory_base_positions.append(new_facing_elem)
 
-        # Add as last element the current (local) base position, where height is unchanged bc frames only move along xy plane and around z axis
-        new_past_trajectory_base_positions.append(np.array([0., 0., self.new_base_position[2] - define_initial_base_height("iCubV2_5")+0.008]))
+        # Add as last element the current (local) base position, i.e. [0,0]
+        new_past_trajectory_base_positions.append(np.array([0., 0.]))
 
         # Update past base positions
         self.new_past_trajectory_base_positions = new_past_trajectory_base_positions
@@ -1125,25 +1195,19 @@ class Autoregression:
         # =====================
 
         # Extract future base positions for blending (i.e. in the plot reference frame)
-        future_base_pos_plot = denormalized_current_output[0:18]
-        
-        future_base_pos_blend = [[0.0, 0.0, 0.0]] #in form -y, x, z (for some reason)
-        for k in range(0, len(future_base_pos_plot), 3):
-            future_base_pos_blend.append([-future_base_pos_plot[k + 1], future_base_pos_plot[k], future_base_pos_plot[k+2]])
+        future_base_pos_plot = denormalized_current_output[6:18]
+        future_base_pos_blend = [[0.0, 0.0]]
+        for k in range(0, len(future_base_pos_plot), 2):
+            future_base_pos_blend.append([-future_base_pos_plot[k + 1], future_base_pos_plot[k]])
 
         # Blend user-specified and network-predicted future base positions
-        input_positions = []
+        blended_base_positions = trajectory_blending(future_base_pos_blend, quad_bezier, self.t, self.tau_base_positions)
 
-        for k in range(len(quad_bezier)):
-            input_positions.append([quad_bezier[k][0], quad_bezier[k][1], base_heights[k]])
-        blended_base_positions = trajectory_blending(future_base_pos_blend, input_positions, self.t, self.tau_base_positions)
-
-        # Reshape blended future base positions, with height as 3rd component
+        # Reshape blended future base positions
         future_base_pos_blend_features = []
         for k in range(1, len(blended_base_positions)):
             future_base_pos_blend_features.append(blended_base_positions[k][1])
             future_base_pos_blend_features.append(-blended_base_positions[k][0])
-            future_base_pos_blend_features.append(blended_base_positions[k][2])
 
         # Normalize blended future base positions
         future_base_pos_blend_features_normalized = future_base_pos_blend_features.copy()
@@ -1307,9 +1371,8 @@ class Autoregression:
 
         # Compute the desired future trajectory length by summing the distances between future base positions
         future_traj_length = 0
-        future_base_position_prev = future_base_pos_blend_features_xy[0]
-
-        for future_base_position in future_base_pos_blend_features_xy[1:]:
+        future_base_position_prev = future_base_pos_blend_features[0]
+        for future_base_position in future_base_pos_blend_features[1:]:
             base_position_distance = np.linalg.norm(future_base_position - future_base_position_prev)
             future_traj_length += base_position_distance
             future_base_position_prev = future_base_position
@@ -1351,6 +1414,7 @@ class Autoregression:
         """Update the autoregression-relevant information."""
 
         self.current_nn_X = [next_nn_X]
+        self.current_past_trajectory_head_heights = self.new_past_trajectory_head_heights
         self.current_past_trajectory_base_positions = self.new_past_trajectory_base_positions
         self.current_past_trajectory_facing_directions = self.new_past_trajectory_facing_directions
         self.current_past_trajectory_base_velocities = self.new_past_trajectory_base_velocities
@@ -1361,21 +1425,27 @@ class Autoregression:
         self.current_base_yaw = self.new_base_yaw
 
     def autoregression_and_blending(self, current_output: np.array, denormalized_current_output: np.array,
-                                    base_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List,
-                                    world_H_base: np.array, base_H_chest: np.array) -> (List, List, List):
+                                    head_heights: List, quad_bezier: List, facing_dirs: List, base_velocities: List,
+                                    world_H_base: np.array, base_H_chest: np.array, base_H_head: np.array) -> (List, List, List):
         """Handle the autoregressive usage of the network output blended with the user input from the joystick."""
 
         # Update the bi-dimensional reference frame given by the base position and the facing direction
-        self.update_reference_frame(world_H_base=world_H_base, base_H_chest=base_H_chest)
+        self.update_reference_frame(world_H_base=world_H_base, base_H_chest=base_H_chest, base_H_head=base_H_head)
 
         # Initialize empty next input
         next_nn_X = []
+
+        # Use the head heights in an autoregressive fashion
+        next_nn_X, blended_head_heights = \
+            self.autoregressive_usage_head_heights(next_nn_X=next_nn_X,
+                                                     denormalized_current_output=denormalized_current_output,
+                                                     head_heights=head_heights)
 
         # Use the base positions in an autoregressive fashion
         next_nn_X, blended_base_positions, future_base_pos_blend_features = \
             self.autoregressive_usage_base_positions(next_nn_X=next_nn_X,
                                                      denormalized_current_output=denormalized_current_output,
-                                                     base_heights=base_heights, quad_bezier=quad_bezier)
+                                                     quad_bezier=quad_bezier)
 
         # Use the facing directions in an autoregressive fashion
         next_nn_X, blended_facing_dirs = \
@@ -1402,7 +1472,7 @@ class Autoregression:
         # Update autoregressive-relevant information for the next iteration
         self.update_autoregression_state(next_nn_X)
 
-        return blended_base_positions, blended_facing_dirs, blended_base_velocities
+        return blended_head_heights, blended_base_positions, blended_facing_dirs, blended_base_velocities
 
 
 @dataclass
@@ -1428,6 +1498,7 @@ class TrajectoryGenerator:
               training_path: str,
               local_foot_vertices_pos: List,
               initial_nn_X: List,
+              initial_past_trajectory_head_hts: List,
               initial_past_trajectory_base_pos: List,
               initial_past_trajectory_facing_dirs: List,
               initial_past_trajectory_base_vel: List,
@@ -1467,6 +1538,7 @@ class TrajectoryGenerator:
         # Build the autoregression handler component
         autoregression = Autoregression.build(training_path=training_path,
                                               initial_nn_X=initial_nn_X,
+                                              initial_past_trajectory_head_hts=initial_past_trajectory_head_hts,
                                               initial_past_trajectory_base_pos=initial_past_trajectory_base_pos,
                                               initial_past_trajectory_facing_dirs=initial_past_trajectory_facing_dirs,
                                               initial_past_trajectory_base_vel=initial_past_trajectory_base_vel,
@@ -1608,12 +1680,12 @@ class TrajectoryGenerator:
 
         return new_base_postural, new_joints_postural, new_links_postural, new_com_postural
 
-    def retrieve_joystick_inputs(self, input_port: yarp.BufferedPortBottle, base_heights: List, quad_bezier: List, base_velocities: List,
+    def retrieve_joystick_inputs(self, input_port: yarp.BufferedPortBottle, head_heights: List, quad_bezier: List, base_velocities: List,
                                  facing_dirs: List, raw_data: List) -> (List, List, List, List):
         """Retrieve user-specified joystick inputs received through YARP port."""
 
         # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
-        # 0-6 are base_heights (z)
+        # 0-6 are head_heights (z)
         # 7-20 are quad_bezier (x,y)
         # 21-34 are base_velocities (x,y)
         # 35-48 are facing_dirs (x,y)
@@ -1626,21 +1698,21 @@ class TrajectoryGenerator:
 
             if quad_bezier:
                 # If the port is empty but the previous joystick inputs are not empty, return them
-                return base_heights, quad_bezier, base_velocities, facing_dirs, raw_data
+                return head_heights, quad_bezier, base_velocities, facing_dirs, raw_data
 
             else:
 
                 # If the port is empty and the previous joystick inputs are empty, return default values
-                default_base_heights = [0 for _ in range(len(self.autoregression.t))]
+                default_head_heights = [0 for _ in range(len(self.autoregression.t))]
                 default_quad_bezier = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_base_velocities = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_facing_dirs = [[0, 1] for _ in range(len(self.autoregression.t))]
                 default_raw_data = [0, 0, 0, -1] # zero motion direction (robot stopped), forward facing direction
-                return default_base_heights, default_quad_bezier, default_base_velocities, default_facing_dirs, default_raw_data
+                return default_head_heights, default_quad_bezier, default_base_velocities, default_facing_dirs, default_raw_data
 
         else:
             # If the port is not empty, retrieve the new joystick inputs
-            new_base_heights = []
+            new_head_heights = []
             new_quad_bezier = []
             new_base_velocities = []
             new_facing_dirs = []
@@ -1648,7 +1720,7 @@ class TrajectoryGenerator:
 
             for k in range(0,7):
                 coord = res.get(k).asFloat32()
-                new_base_heights.append(coord)
+                new_head_heights.append(coord)
 
             for k in range(7, res.size() - 4, 2):
                 coords = [res.get(k).asFloat32(), res.get(k + 1).asFloat32()]
@@ -1662,30 +1734,32 @@ class TrajectoryGenerator:
             for k in range(res.size() - 4, res.size()):
                 new_raw_data.append(res.get(k).asFloat32())
 
-            return new_base_heights, new_quad_bezier, new_base_velocities, new_facing_dirs, new_raw_data
+            return new_head_heights, new_quad_bezier, new_base_velocities, new_facing_dirs, new_raw_data
 
-    def autoregression_and_blending(self, current_output: np.array, denormalized_current_output: np.array, base_heights: List, quad_bezier: List,
+    def autoregression_and_blending(self, current_output: np.array, denormalized_current_output: np.array, head_heights: List, quad_bezier: List,
                   facing_dirs: List, base_velocities: List) -> (List, List, List):
         """Use the network output in an autoregressive fashion and blend it with the user input."""
 
         world_H_base = self.kincomputations.kindyn.get_world_base_transform()
         base_H_chest = self.kincomputations.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="chest")
+        base_H_head = self.kincomputations.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
 
         # Use the network output in an autoregressive fashion and blend it with the user input
-        blended_base_positions, blended_facing_dirs, blended_base_velocities = \
+        blended_head_heights, blended_base_positions, blended_facing_dirs, blended_base_velocities = \
             self.autoregression.autoregression_and_blending(current_output=current_output,
                                                             denormalized_current_output=denormalized_current_output,
-                                                            base_heights=base_heights,
+                                                            head_heights=head_heights,
                                                             quad_bezier=quad_bezier,
                                                             facing_dirs=facing_dirs,
                                                             base_velocities=base_velocities,
                                                             world_H_base=world_H_base,
-                                                            base_H_chest=base_H_chest)
+                                                            base_H_chest=base_H_chest,
+                                                            base_H_head=base_H_head)
 
-        return blended_base_positions, blended_facing_dirs, blended_base_velocities
+        return blended_head_heights, blended_base_positions, blended_facing_dirs, blended_base_velocities
 
     def update_storages_and_save(self, blending_coefficients: List, base_postural: List, joints_postural: List,
-                                 links_postural: List, com_postural: List, raw_data: List, base_heights: List, quad_bezier: List,
+                                 links_postural: List, com_postural: List, raw_data: List, head_heights: List, quad_bezier: List,
                                  base_velocities: List, facing_dirs: List, save_every_N_iterations: int) -> None:
         """Update the blending coefficients, posturals and joystick input storages and periodically save data."""
 
@@ -1697,7 +1771,7 @@ class TrajectoryGenerator:
                                               links=links_postural, com=com_postural)
 
         # Update joystick inputs storage
-        self.storage.update_joystick_inputs_storage(raw_data=raw_data, base_heights=base_heights, quad_bezier=quad_bezier,
+        self.storage.update_joystick_inputs_storage(raw_data=raw_data, head_heights=head_heights, quad_bezier=quad_bezier,
                                                     base_velocities=base_velocities, facing_dirs=facing_dirs)
 
         # Periodically save data
