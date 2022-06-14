@@ -9,6 +9,7 @@ from gym_ignition.rbd.idyntree import numpy
 from adherent.data_processing import utils
 from gym_ignition.rbd.conversions import Quaternion
 from gym_ignition.rbd.idyntree import kindyncomputations
+from adherent.trajectory_generation.utils import define_reference_head_height
 
 
 @dataclass
@@ -101,7 +102,9 @@ class GlobalFrameFeatures:
             base_H_head = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
             W_H_head = world_H_base.dot(base_H_head)
             W_head_height = W_H_head[2, -1]
-            self.head_heights.append(W_head_height)
+            # Get nominal head height
+            nom_head_height = W_head_height - define_reference_head_height("iCubV2_5") #TODO check this
+            self.head_heights.append(nom_head_height)
 
             # Facing direction
             facing_direction = ground_base_direction + ground_chest_direction # mean of ground base and chest directions
