@@ -221,7 +221,8 @@ def visualize_candidate_features(ik_solutions: List,
     base_heights = np.empty(len(ik_solutions)-1)
     comxs = np.empty(len(ik_solutions)-1)
     comzs = np.empty(len(ik_solutions)-1)
-    head_hts = np.empty(len(ik_solutions)-1)
+    head_xs = np.empty(len(ik_solutions)-1)
+    head_zs = np.empty(len(ik_solutions)-1)
     for i in range(1,len(ik_solutions)):
         # =================
         # BASE HEIGHTS
@@ -255,17 +256,22 @@ def visualize_candidate_features(ik_solutions: List,
         # Retrieve the rotation from the facing direction to the world frame and its inverse
         # Express CoM x,y locally
         T_world_to_base = np.linalg.inv(world_H_base)
-        current_local_com_pos = T_world_to_base.dot([com[0],com[1],com[2],1]) #np.matmul(world_H_base, [[com[0]], [com[1]], [com[2]], [1]])
+        current_local_com_pos = T_world_to_base.dot([com[0],com[1],com[2],1])
         comxs[i-1] = current_local_com_pos[0]
-
+        
         # =================
-        # HEAD HEIGHTS (could also check x pos later)
+        # HEAD POSITIONS
         # =================
         # Compute head height wrt the world frame
         base_H_head = kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
         W_H_head = world_H_base.dot(base_H_head)
         W_head_ht = W_H_head[2, -1]
-        head_hts[i-1] = W_head_ht
+        head_zs[i-1] = W_head_ht
+
+        #Compute head x in local base frame
+        current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
+        head_xs[i-1] = current_local_head_pos[0]
+
         
     # Figure 1 for base heights
     plt.figure(1)
@@ -330,12 +336,12 @@ def visualize_candidate_features(ik_solutions: List,
     plt.legend()
     plt.savefig('com_z_D4_19.png')
 
-    # Figure 4 for head heights
+    # Figure 4 for head x
     plt.figure(4)
     plt.clf()
 
-    #Plot head height
-    plt.plot(range(1,len(ik_solutions)), head_hts, c='k', label='Head height')
+    #Plot head x
+    plt.plot(range(1,len(ik_solutions)), head_xs, c='k', label='Head x')
 
     #Plot standing points (D4 portion 19, mixed walking)
     xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
@@ -346,11 +352,33 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Head heights for mixed walking (D4 portion 19)')
+    plt.title('Head x for mixed walking (D4 portion 19)')
     plt.xlabel('Timestep')
-    plt.ylabel('Global head height (m)')
+    plt.ylabel('Local (measured from base) head x (m)')
     plt.legend()
-    plt.savefig('head_heights_D4_19.png')
+    plt.savefig('head_x_D4_19.png')
+
+    # Figure 5 for head z
+    plt.figure(5)
+    plt.clf()
+
+    #Plot head z
+    plt.plot(range(1,len(ik_solutions)), head_zs, c='k', label='Head z')
+
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+
+    plt.grid()
+    plt.title('Head z for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Global head z (m)')
+    plt.legend()
+    plt.savefig('head_z_D4_19.png')
 
     # Plot
     plt.show()
