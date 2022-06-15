@@ -210,7 +210,7 @@ def visualize_retargeted_motion(timestamps: List,
     print("Visualization ended")
     time.sleep(1)
 
-def visualize_com_positions(ik_solutions: List,
+def visualize_candidate_features(ik_solutions: List,
                             icub: iCub,
                             kindyn: kindyncomputations.KinDynComputations,
                             world: scenario.World,
@@ -218,18 +218,26 @@ def visualize_com_positions(ik_solutions: List,
                             gazebo: scenario.GazeboSimulator) -> None:
 
     print(len(ik_solutions))
+    base_heights = np.empty(len(ik_solutions)-1)
     comxs = np.empty(len(ik_solutions)-1)
     comzs = np.empty(len(ik_solutions)-1)
     head_hts = np.empty(len(ik_solutions)-1)
     for i in range(1,len(ik_solutions)):
         # =================
-        # COM POSITIONS
+        # BASE HEIGHTS
         # =================
         ik_solution = ik_solutions[i]
 
         # Retrieve the base pose and the joint positions
-        joint_positions = np.asarray(ik_solution["joint_positions"])
         base_position = np.asarray(ik_solution["base_position"])
+        base_heights[i-1] = base_position[2]
+
+        # =================
+        # COM POSITIONS
+        # =================
+
+        # Retrieve the base pose and the joint positions
+        joint_positions = np.asarray(ik_solution["joint_positions"])
         base_quaternion = np.asarray(ik_solution["base_quaternion"])
 
         # Reset the base pose and the joint positions
@@ -239,59 +247,110 @@ def visualize_com_positions(ik_solutions: List,
         #go through and get com for each step
         kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravity()))
         com = kindyn.get_com_position()
-        comxs[i-1] = com[0]
         comzs[i-1] = com[2]
+        
+        #get CoM x in local base frame
+        # Get ground rotation from world to base frame
+        world_H_base = kindyn.get_world_base_transform()
+        # Retrieve the rotation from the facing direction to the world frame and its inverse
+        # Express CoM x,y locally
+        T_world_to_base = np.linalg.inv(world_H_base)
+        current_local_com_pos = T_world_to_base.dot([com[0],com[1],com[2],1]) #np.matmul(world_H_base, [[com[0]], [com[1]], [com[2]], [1]])
+        comxs[i-1] = current_local_com_pos[0]
 
         # =================
         # HEAD HEIGHTS (could also check x pos later)
         # =================
         # Compute head height wrt the world frame
-        world_H_base = kindyn.get_world_base_transform()
         base_H_head = kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
         W_H_head = world_H_base.dot(base_H_head)
         W_head_ht = W_H_head[2, -1]
         head_hts[i-1] = W_head_ht
         
-    # Figure 1 for com positions
-    # plt.figure(1)
-    # plt.clf()
+    # Figure 1 for base heights
+    plt.figure(1)
+    plt.clf()
 
-    # # print(coms)
-    # #Plot all 3 dims of CoM
-    # plt.plot(range(1,len(ik_solutions)), comxs, c='r', label='CoM x')
-    # plt.plot(range(1,len(ik_solutions)), comzs, c='k', label='CoM z')
+    #Plot base heights
+    plt.plot(range(1,len(ik_solutions)), base_heights, c='k', label='Base height')
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
 
-    # plt.grid(True)
-    # ax = plt.gca()
-    # ax.set_xlim([500, 1000])
-    # ax.set_ylim([ymin, ymax])
+    plt.grid()
+    plt.title('Base heights for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Global base height (m)')
+    plt.legend()
+    plt.savefig('base_heights_D4_19.png')
 
-    # Figure 2 for com positions
+    # Figure 2 for CoM x position (local)
     plt.figure(2)
     plt.clf()
 
-    #Plot head height
-    plt.plot(range(1,len(ik_solutions)), head_hts, c='r', label='Head z')
-    plt.axvline(x=1)
-    plt.axvline(x=770)
-    plt.axvline(x=2200)
-    plt.axvline(x=3300)
-    plt.axvline(x=6300)
-    plt.axvline(x=10700)
-    plt.axvline(x=11600)
-    plt.axvline(x=14100)
-    plt.axvline(x=16700)
-    plt.axvline(x=17900)
-    plt.axvline(x=19600)
-    plt.axvline(x=24400)
-    plt.axvline(x=27000)
-    plt.axvline(x=28100)
-    plt.axvline(x=30300)
+    #Plot CoM x
+    plt.plot(range(1,len(ik_solutions)), comxs, c='k', label='CoM x')
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
 
-    plt.grid(True)
-    ax = plt.gca()
-    # ax.set_xlim([500, 1000])
-    # ax.set_ylim([ymin, ymax])
+    plt.grid()
+    plt.title('CoM x for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Local (measured from base) CoM x (m)')
+    plt.legend()    
+    plt.savefig('com_x_D4_19.png')
+
+    # Figure 3 for CoM z position
+    plt.figure(3)
+    plt.clf()
+
+    #Plot CoM z
+    plt.plot(range(1,len(ik_solutions)), comzs, c='k', label='CoM z')
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+
+    plt.grid()
+    plt.title('CoM z for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Global CoM z (m)')
+    plt.legend()
+    plt.savefig('com_z_D4_19.png')
+
+    # Figure 4 for head heights
+    plt.figure(4)
+    plt.clf()
+
+    #Plot head height
+    plt.plot(range(1,len(ik_solutions)), head_hts, c='k', label='Head height')
+
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+
+    plt.grid()
+    plt.title('Head heights for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Global head height (m)')
+    plt.legend()
+    plt.savefig('head_heights_D4_19.png')
 
     # Plot
     plt.show()

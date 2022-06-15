@@ -30,7 +30,7 @@ parser.add_argument("--mirrored", help="Visualize the mirrored version of the se
 # Plot configuration
 parser.add_argument("--plot_global", help="Visualize the computed global features.",action="store_true")
 parser.add_argument("--plot_local", help="Visualization the computed local features.",action="store_true")
-parser.add_argument("--plot_com", help="Visualization the CoM over the whole dataset.",action="store_true")
+parser.add_argument("--plot_candidate_features", help="Visualize the candidate features over the whole dataset.",action="store_true")
 
 # Store configuration
 parser.add_argument("--save", help="Store the network input and output vectors in json format.",action="store_true")
@@ -42,7 +42,7 @@ retargeted_mocap_index = args.portion
 mirrored = args.mirrored
 plot_global = args.plot_global
 plot_local = args.plot_local
-plot_com = args.plot_com
+plot_candidate_features = args.plot_candidate_features
 store_as_json = args.save
 
 # ====================
@@ -174,10 +174,10 @@ if store_as_json:
 # VISUALIZE THE COM POSITION OVER THE WHOLE DATASET
 # =======================================================
 
-if plot_com:
+if plot_candidate_features:
 
-    input("Press Enter to start the overall visualization of the CoM")
-    utils.visualize_com_positions(ik_solutions=ik_solutions,
+    input("Press Enter to start the overall visualization of the candidate features")
+    utils.visualize_candidate_features(ik_solutions=ik_solutions,
                                   icub=icub,
                                   kindyn=kindyn,
                                   world=world,
