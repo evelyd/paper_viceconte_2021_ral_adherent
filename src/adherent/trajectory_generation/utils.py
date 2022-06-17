@@ -161,7 +161,8 @@ def define_initial_nn_X(robot: str) -> List:
         raise Exception("Initial network input X only defined for iCubV2_5.")
 
     # Initial input manually retrieved from a standing pose
-    initial_nn_X = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, #these are the nominal head heights, that's why they are 0 TODO replace with measurements
+    initial_nn_X = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, #these are the nominal head x,z, that's why they are 0
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                      0.2119528955450237, -0.0030393414305661757, 0.2088665596830631, -0.0021020581878808007,
                      0.20531231168918174, -0.0008621646186016302, 0.2038031784172399, 0.0006000018873639539,
                      0.20492310200003655, 0.00219387868363895, 0.0, 0.0, -0.2861243642562259, 0.009288430936687906,
@@ -200,13 +201,13 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
 
     # The above quantities are expressed in the frame specified by the initial base position and the facing direction
 
-    # Initial past head heights manually retrieved from a standing pose
-    initial_past_trajectory_head_ht = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                       0.0] #TODO replace with measured vals
+    # Initial past head x,z manually retrieved from a standing pose
+    initial_past_trajectory_head_xz = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], 
+                                       [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
+                                       [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
+                                       [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
+                                       [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
+                                       [0.0, 0.0]] #TODO replace with measured vals
 
     # Initial past base positions manually retrieved from a standing pose
     initial_past_trajectory_base_pos = [[-0.0006781887991487454, 0.0005382023957937025],
@@ -379,15 +380,15 @@ def define_initial_base_height(robot: str) -> List:
 
     return initial_base_height
 
-def define_reference_head_height(robot: str) -> List:
+def define_reference_head_xz(robot: str) -> List:
     """Define the robot-specific initial head height of the base frame."""
 
     if robot != "iCubV2_5":
         raise Exception("Reference head height only defined for iCubV2_5.")
 
-    reference_head_height = 0.86 #TODO replace with a measured average value
+    reference_head_xz = np.array([0.0, 0.86]) #TODO replace with a measured average value
 
-    return reference_head_height
+    return reference_head_xz
 
 def define_initial_base_yaw(robot: str) -> List:
     """Define the robot-specific initial base yaw expressed in the world frame."""
@@ -427,28 +428,28 @@ def load_component_wise_input_mean_and_std(datapath: str) -> (Dict, Dict):
             Xstd[i] = 1
 
     # Retrieve component-wise input mean and std (used to normalize the next input for the network)
-    Xmean_dict = {"past_head_heights": Xmean[0:6]}
-    Xstd_dict = {"past_head_heights": Xstd[0:6]}
-    Xmean_dict["future_head_heights"] = Xmean[6:12]
-    Xstd_dict["future_head_heights"] = Xstd[6:12]
-    Xmean_dict["past_base_positions"] = Xmean[12:24]
-    Xstd_dict["past_base_positions"] = Xstd[12:24]
-    Xmean_dict["future_base_positions"] = Xmean[24:36]
-    Xstd_dict["future_base_positions"] = Xstd[24:36]
-    Xmean_dict["past_facing_directions"] = Xmean[36:48]
-    Xstd_dict["past_facing_directions"] = Xstd[36:48]
-    Xmean_dict["future_facing_directions"] = Xmean[48:60]
-    Xstd_dict["future_facing_directions"] = Xstd[48:60]
-    Xmean_dict["past_base_velocities"] = Xmean[60:72]
-    Xstd_dict["past_base_velocities"] = Xstd[60:72]
-    Xmean_dict["future_base_velocities"] = Xmean[72:84]
-    Xstd_dict["future_base_velocities"] = Xstd[72:84]
-    Xmean_dict["future_traj_length"] = Xmean[84]
-    Xstd_dict["future_traj_length"] = Xstd[84]
-    Xmean_dict["s"] = Xmean[85:117]
-    Xstd_dict["s"] = Xstd[85:117]
-    Xmean_dict["s_dot"] = Xmean[117:]
-    Xstd_dict["s_dot"] = Xstd[117:]
+    Xmean_dict = {"past_head_xzs": Xmean[0:12]}
+    Xstd_dict = {"past_head_xzs": Xstd[0:12]}
+    Xmean_dict["future_head_xzs"] = Xmean[12:24]
+    Xstd_dict["future_head_xzs"] = Xstd[12:24]
+    Xmean_dict["past_base_positions"] = Xmean[24:36]
+    Xstd_dict["past_base_positions"] = Xstd[24:36]
+    Xmean_dict["future_base_positions"] = Xmean[36:48]
+    Xstd_dict["future_base_positions"] = Xstd[36:48]
+    Xmean_dict["past_facing_directions"] = Xmean[48:60]
+    Xstd_dict["past_facing_directions"] = Xstd[48:60]
+    Xmean_dict["future_facing_directions"] = Xmean[60:72]
+    Xstd_dict["future_facing_directions"] = Xstd[60:72]
+    Xmean_dict["past_base_velocities"] = Xmean[72:84]
+    Xstd_dict["past_base_velocities"] = Xstd[72:84]
+    Xmean_dict["future_base_velocities"] = Xmean[84:96]
+    Xstd_dict["future_base_velocities"] = Xstd[84:96]
+    Xmean_dict["future_traj_length"] = Xmean[96]
+    Xstd_dict["future_traj_length"] = Xstd[96]
+    Xmean_dict["s"] = Xmean[97:129]
+    Xstd_dict["s"] = Xstd[97:129]
+    Xmean_dict["s_dot"] = Xmean[129:]
+    Xstd_dict["s_dot"] = Xstd[129:]
 
     return Xmean_dict, Xstd_dict
 

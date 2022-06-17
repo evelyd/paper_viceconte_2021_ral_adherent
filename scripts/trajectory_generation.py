@@ -69,7 +69,7 @@ yarp.Network.connect("/joystick_out", p_in.getName())
 
 # Initialization of the joystick raw and processed inputs received through YARP ports
 raw_data = [] # motion and facing directions
-head_heights = []
+head_xz = []
 quad_bezier = []
 base_velocities = []
 facing_dirs = []
@@ -106,7 +106,7 @@ kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravi
 # ==================
 
 # Define the indexes of the figures for plotting
-figure_head_heights = 1
+figure_head_xz = 1
 figure_facing_dirs = 2
 figure_base_vel = 3
 figure_blending_coefficients = 4
@@ -196,19 +196,19 @@ with tf.Session(config=config) as sess:
                                                                               link_names=icub.link_names())
 
         # Retrieve user input data from YARP port
-        head_heights, quad_bezier, base_velocities, facing_dirs, raw_data = \
+        head_xz, quad_bezier, base_velocities, facing_dirs, raw_data = \
             generator.retrieve_joystick_inputs(input_port=p_in,
-                                               head_heights=head_heights,
+                                               head_xz=head_xz,
                                                quad_bezier=quad_bezier,
                                                base_velocities=base_velocities,
                                                facing_dirs=facing_dirs,
                                                raw_data=raw_data)
 
         # Use in an autoregressive fashion the network output and blend it with the user input
-        blended_head_heights, blended_base_positions, blended_facing_dirs, blended_base_velocities = \
+        blended_head_xz, blended_base_positions, blended_facing_dirs, blended_base_velocities = \
             generator.autoregression_and_blending(current_output=current_output,
                                                   denormalized_current_output=denormalized_current_output,
-                                                  head_heights=head_heights,
+                                                  head_xz=head_xz,
                                                   quad_bezier=quad_bezier,
                                                   facing_dirs=facing_dirs,
                                                   base_velocities=base_velocities)
@@ -220,7 +220,7 @@ with tf.Session(config=config) as sess:
                                            links_postural=new_links_postural,
                                            com_postural=new_com_postural,
                                            raw_data=raw_data,
-                                           head_heights=head_heights,
+                                           head_xz=head_xz,
                                            quad_bezier=quad_bezier,
                                            base_velocities=base_velocities,
                                            facing_dirs=facing_dirs,
@@ -228,14 +228,14 @@ with tf.Session(config=config) as sess:
 
         if plot_trajectory_blending:
             # Plot the trajectory blending
-            generator.plotter.plot_trajectory_blending(figure_head_heights=figure_head_heights,
+            generator.plotter.plot_trajectory_blending(figure_head_xz=figure_head_xz,
                                                        figure_facing_dirs=figure_facing_dirs,
                                                        figure_base_vel=figure_base_vel,
                                                        denormalized_current_output=denormalized_current_output,
-                                                       head_heights=head_heights,
+                                                       head_xz=head_xz,
                                                        quad_bezier=quad_bezier, facing_dirs=facing_dirs,
                                                        base_velocities=base_velocities,
-                                                       blended_head_heights=blended_head_heights,
+                                                       blended_head_xz=blended_head_xz,
                                                        blended_base_positions=blended_base_positions,
                                                        blended_facing_dirs=blended_facing_dirs,
                                                        blended_base_velocities=blended_base_velocities)
