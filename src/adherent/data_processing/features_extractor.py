@@ -105,7 +105,7 @@ class GlobalFrameFeatures:
             current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
             head_xz = [current_local_head_pos[0], W_H_head[2, -1]]
             # Get nominal head x,z
-            nom_head_xz = head_xz - define_reference_head_xz("iCubV2_5") #TODO check this
+            nom_head_xz = head_xz - define_reference_head_xz("iCubV2_5")
             self.head_xzs.append(nom_head_xz)
 
             # Facing direction

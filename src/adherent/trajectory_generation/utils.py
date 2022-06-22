@@ -202,7 +202,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
     # The above quantities are expressed in the frame specified by the initial base position and the facing direction
 
     # Initial past head x,z manually retrieved from a standing pose
-    initial_past_trajectory_head_xz = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], 
+    initial_past_trajectory_head_xzs = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], 
                                        [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
                                        [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
                                        [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0],
@@ -368,7 +368,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
                                 [0.0027292570019628926, -0.003613289208665431],
                                 [0.0027306743709001454, -0.003612217655202784]]
 
-    return initial_past_trajectory_head_ht, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
+    return initial_past_trajectory_head_xzs, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
 
 def define_initial_base_height(robot: str) -> List:
     """Define the robot-specific initial height of the base frame."""
@@ -381,12 +381,12 @@ def define_initial_base_height(robot: str) -> List:
     return initial_base_height
 
 def define_reference_head_xz(robot: str) -> List:
-    """Define the robot-specific initial head height of the base frame."""
+    """Define the robot-specific initial head x,z of the base frame."""
 
     if robot != "iCubV2_5":
-        raise Exception("Reference head height only defined for iCubV2_5.")
+        raise Exception("Reference head x,z (standing) only defined for iCubV2_5.")
 
-    reference_head_xz = np.array([0.0, 0.86]) #TODO replace with a measured average value
+    reference_head_xz = np.array([-0.06451682, 0.86823943]) #this is a value measured in standing position
 
     return reference_head_xz
 
