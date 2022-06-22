@@ -272,7 +272,9 @@ def visualize_candidate_features(ik_solutions: List,
         current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
         head_xs[i-1] = current_local_head_pos[0]
 
-        
+    #make plots larger
+    plt.rcParams['figure.figsize'] = [16,10]
+
     # Figure 1 for base heights
     plt.figure(1)
     plt.clf()
@@ -379,6 +381,101 @@ def visualize_candidate_features(ik_solutions: List,
     plt.ylabel('Global head z (m)')
     plt.legend()
     plt.savefig('head_z_D4_19.png')
+
+    #Figure 6 for comparisons of transitions between crouching and walking upright
+    plt.figure(6)
+    plt.clf()
+
+    #create subplots where x and z plots are next to each other
+    xcoords = [700,800,850,925]
+    plt.subplot(2,4,1)
+    plt.plot(range(400,1000), head_xs[400:1000], c='k', label='Head x')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.ylabel('Global head x (m)')
+    plt.xticks(rotation = 45)
+    plt.grid()
+    plt.subplot(2,4,5)
+    plt.plot(range(400,1000), head_zs[400:1000], c='b', label='Head z')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xlabel('Timestep')
+    plt.ylabel('Global head z (m)')
+    plt.xticks(rotation = 45)
+    plt.grid()
+
+    xcoords = [6200,6270,6350,6425]
+    plt.subplot(2,4,2)
+    plt.plot(range(6000,6600), head_xs[6000:6600], c='k', label='Head x')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xticks(rotation = 45)
+    plt.grid()
+    plt.subplot(2,4,6)
+    plt.plot(range(6000,6600), head_zs[6000:6600], c='b', label='Head z')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xlabel('Timestep')
+    plt.xticks(rotation = 45)
+    plt.grid()
+
+    xcoords = [23000,23075,23150,23225]
+    plt.subplot(2,4,3)
+    plt.plot(range(22700,23300), head_xs[22700:23300], c='k', label='Head x')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xticks(rotation = 45)
+    plt.grid()
+    plt.subplot(2,4,7)
+    plt.plot(range(22700,23300), head_zs[22700:23300], c='b', label='Head z')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xlabel('Timestep')
+    plt.xticks(rotation = 45)
+    plt.grid()
+
+    xcoords = [28070,28150,28200,28300]
+    plt.subplot(2,4,4)
+    plt.plot(range(27800,28400), head_xs[27800:28400], c='k', label='Head x')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xticks(rotation = 45)
+    plt.grid()
+    plt.subplot(2,4,8)
+    plt.plot(range(27800,28400), head_zs[27800:28400], c='b', label='Head z')
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+    plt.xlabel('Timestep')
+    plt.xticks(rotation = 45)
+    plt.grid()
+
+    plt.suptitle('Head x,z transitions for mixed walking (D4 portion 19)')
+
+    plt.savefig('head_transitions_D4_19.png')
 
     # Plot
     plt.show()
