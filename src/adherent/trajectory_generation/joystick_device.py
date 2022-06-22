@@ -390,7 +390,7 @@ class JoystickDataProcessor:
 
         head_xz = []
         if self.curr_crouch_status: #crouching is turned on
-            head_xz_val = upright_walking_head_xz-np.array([0.0, 0.07]) #-7 cm (number based on eyeballed difference in dataset TODO find averages)
+            head_xz_val = upright_walking_head_xz-np.array([0.11671078, 0.15290253]) #numbers are averages calculated from crouching dataset
 
         else: #crouching is turned off
             head_xz_val = upright_walking_head_xz #same as upright position
@@ -399,8 +399,7 @@ class JoystickDataProcessor:
         # head_x = (head_xz*np.ones(self.t.size)).tolist()
         for i in range(self.t.size):
             head_xz.append(head_xz_val)
-
-        print("haed xz: ", head_xz)
+            
         return head_xz
 
     def compute_quadratic_bezier(self) -> List:
@@ -526,10 +525,13 @@ class JoystickDataProcessor:
         plt.clf()
 
         # Plot configuration
-        plt.plot(self.t,head_xz, '-o', label='Head x (local base frame)')
+        desired_head_xz = plt.plot(self.t,head_xz, '-o', label='Head x (local base frame)')
         # plt.plot(self.t,head_xz[1], '-o', label='Head z')
+        plt.grid()
         plt.xlabel("time (s)")
         plt.ylabel("head position (m)")
+        plt.legend(['Head x', 'Head z'], loc="upper right")
+        plt.title('DESIRED RELATIVE HEAD X (LOCAL BASE FRAME) AND Z (GLOBAL FRAME)')
 
     def plot_motion_direction(self) -> None:
         """Visualize the current motion direction."""
