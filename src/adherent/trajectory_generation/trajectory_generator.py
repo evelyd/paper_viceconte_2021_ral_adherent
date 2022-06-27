@@ -684,8 +684,6 @@ class Plotter:
         predicted_facing_dirs = denormalized_current_output[24:36]
         predicted_base_vel = denormalized_current_output[36:48]
 
-        print("predicted head xz: ", predicted_head_xz)
-
         plt.figure(figure_head_xzs)
 
         predicted_head_x = []
@@ -739,14 +737,12 @@ class Plotter:
 
         plt.figure(figure_head_xzs)
 
-        print("user input head xzs: ", head_xzs)
-
         head_x = []
         head_z = []
         # Separate x and z vectors of head position
-        for i in range(0, len(head_xzs),2):
-            head_x.append(head_xzs[i])
-            head_z.append(head_xzs[i+1])
+        for i in range(0, len(head_xzs)):
+            head_x.append(head_xzs[i][0])
+            head_z.append(head_xzs[i][1])
 
         # Plot base heights
         plt.scatter(np.linspace(0, 1, 7), head_x, c='gray', label="Desired future x trajectory")
@@ -1128,9 +1124,6 @@ class Autoregression:
         # Add as last element the current (local) head x,z
         new_current_nominal_head_xz = np.array([self.new_head_xz[0], self.new_head_xz[1]]) - define_reference_head_xz("iCubV2_5")
 
-        print("non-nominal new current head xz: ", np.array([self.new_head_xz[0], self.new_head_xz[1]]))
-        print("nominal new current head xz: ", new_current_nominal_head_xz)
-
         new_past_trajectory_head_xzs.append(new_current_nominal_head_xz)
 
         # Update past head x,zs
@@ -1156,17 +1149,12 @@ class Autoregression:
 
         # Extract future head x,zs for blending (i.e. in the plot reference frame)
         future_head_xz_plot = denormalized_current_output[0:12]
-        print("Y output for head xz: ", denormalized_current_output[0:12])
         future_head_xz_blend = [[new_current_nominal_head_xz[0], new_current_nominal_head_xz[1]]] #[[0.0, 0.0]] this was what Paolo mentioned TODO check it
         for k in range(0, len(future_head_xz_plot), 2):
             future_head_xz_blend.append([future_head_xz_plot[k], future_head_xz_plot[k+1]])
-        print("future head xz blend: ", future_head_xz_blend)
-        print("head xz user inputs: ", head_xzs)
 
         # Blend user-specified and network-predicted future head x,zs
         blended_head_xzs = trajectory_blending(future_head_xz_blend, head_xzs, self.t, self.tau_base_positions)
-
-        print("blended head xzs: ", blended_head_xzs)
 
         # Reshape blended future head x,zs
         future_head_xzs_blend_features = []
@@ -1182,7 +1170,7 @@ class Autoregression:
                                                               self.Xstd_dict["future_head_xzs"][k]
 
         # Add the normalized blended future head x,zs to the next input
-        next_nn_X.extend(future_head_xzs_blend_features)
+        next_nn_X.extend(future_head_xzs_blend_features_normalized)
 
         return next_nn_X, blended_head_xzs
 
@@ -1737,7 +1725,6 @@ class TrajectoryGenerator:
                 return head_xzs, quad_bezier, base_velocities, facing_dirs, raw_data
 
             else:
-
                 # If the port is empty and the previous joystick inputs are empty, return default values
                 default_head_xzs = [[0, 0] for _ in range(len(self.autoregression.t))]
                 default_quad_bezier = [[0, 0] for _ in range(len(self.autoregression.t))]
@@ -1754,13 +1741,11 @@ class TrajectoryGenerator:
             new_facing_dirs = []
             new_raw_data = []
 
-            for k in range(0,14):
-                coord = res.get(k).asFloat32()
-                new_head_xzs.append(coord)
-
-            for k in range(14, res.size() - 4, 2):
+            for k in range(0, res.size() - 4, 2):
                 coords = [res.get(k).asFloat32(), res.get(k + 1).asFloat32()]
-                if k < 28:
+                if k < 14:
+                    new_head_xzs.append(coords)
+                elif k < 28:
                     new_quad_bezier.append(coords)
                 elif k < 42:
                     new_base_velocities.append(coords)
