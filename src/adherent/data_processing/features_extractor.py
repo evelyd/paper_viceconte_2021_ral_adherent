@@ -26,6 +26,7 @@ class GlobalFrameFeatures:
     # Features storage
     head_xzs: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
+    xz_base_directions: List = field(default_factory=list)
     ground_base_directions: List = field(default_factory=list)
     ground_chest_directions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
@@ -88,6 +89,11 @@ class GlobalFrameFeatures:
             ground_base_direction = ground_base_direction / np.linalg.norm(ground_base_direction) # of unitary norm
             self.ground_base_directions.append(ground_base_direction)
 
+            # xz plane base direction
+            xz_base_direction = [base_direction[0], base_direction[2]] # project on the xz plane
+            xz_base_direction = xz_base_direction / np.linalg.norm(xz_base_direction) # of unitary norm
+            self.xz_base_directions.append(xz_base_direction)
+
             # Ground chest direction
             world_H_base = self.kindyn.get_world_base_transform()
             base_H_chest = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="chest")
@@ -131,13 +137,22 @@ class GlobalFrameFeatures:
             base_velocity = (base_position - base_position_prev) / self.dt_mean
             self.base_velocities.append(base_velocity)
 
-            # Base angular velocities by differentiation of ground base directions
+            # Base pitch angular velocities by differentiation of xz base directions
+            xz_base_direction_prev = self.xz_base_directions[-2]
+            cos_phi = np.dot(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
+            sin_phi = np.cross(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
+            phi = math.atan2(sin_phi, cos_phi)
+            xz_base_angular_velocity = phi / self.dt_mean
+
+            # Base yaw angular velocities by differentiation of ground base directions
             ground_base_direction_prev = self.ground_base_directions[-2]
             cos_theta = np.dot(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
             sin_theta = np.cross(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
             theta = math.atan2(sin_theta, cos_theta)
-            base_angular_velocity = theta / self.dt_mean
-            self.base_angular_velocities.append(base_angular_velocity)
+            ground_base_angular_velocity = theta / self.dt_mean
+            
+            ang_vels = [xz_base_angular_velocity, ground_base_angular_velocity]
+            self.base_angular_velocities.append(ang_vels) #this is both y and z ang vels
 
 
 @dataclass
@@ -333,18 +348,18 @@ class LocalWindowFeatures:
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
-                current_global_head_ht = current_global_head_xzs[j]
+                current_global_head_xz = current_global_head_xzs[j]
                 current_global_base_pos = current_global_base_positions[j][:2]
                 current_global_facing_dir = current_global_facing_directions[j]
                 current_global_base_vel = current_global_base_velocities[j][0:2]
                 # Express them locally
-                current_local_head_ht = current_global_head_ht #because ht doesn't change with facing dir
+                current_local_head_xz = current_global_head_xz #because ht doesn't change with facing dir
                 current_local_base_pos = facing_R_world.dot(current_global_base_pos - reference_base_pos)
                 current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
                 # Fill the placeholders for the local features associated to the current window
-                current_local_head_xzs.append(current_local_head_ht)
+                current_local_head_xzs.append(current_local_head_xz)
                 current_local_base_positions.append(current_local_base_pos)
                 current_local_facing_directions.append(current_local_facing_dir)
                 current_local_base_velocities.append(current_local_base_vel)
@@ -534,11 +549,11 @@ class FeaturesExtractor:
             current_local_base_z_velocity = [self.local_frame_features.base_z_velocities[i - 1]]
             Y_i.extend(current_local_base_z_velocity)
 
-            # Add current local base angular velocity (1 component)
-            current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
+            # Add current local base angular velocity (2 components)
+            current_local_base_angular_velocity = self.local_frame_features.base_angular_velocities[i - 1]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (115 components)
+            # Store current output vector (116 components)
             Y.append(Y_i)
 
         # Debug
