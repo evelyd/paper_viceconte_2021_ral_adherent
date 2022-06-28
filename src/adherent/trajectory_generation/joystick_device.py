@@ -216,6 +216,7 @@ class JoystickDataProcessor:
     # Crouch status: 'a' button data <-> a
     curr_crouch_status: bool = False
     a_pressed: bool = False
+    a_state: int = 0
 
     # Motion direction: left analog data <-> (x,y)
     curr_x: float = 0
@@ -277,10 +278,22 @@ class JoystickDataProcessor:
         if self.device.button_states["a"]:
             self.a_pressed = True
         else:
-            if self.a_pressed:
+            # only switch the crouch status (only acknowledge pressing of a button) if it is not in a transition state
+            if self.a_pressed and ((self.a_state == 0) or (self.a_state == 7)):
                 self.curr_crouch_status = not self.curr_crouch_status
                 self.a_pressed = False
                 print('Changed crouch status to: %s' % self.curr_crouch_status)
+        
+
+        # # if crouch is currently enabled (regardless of whether it was already enabled)
+        # if self.curr_crouch_status and (self.a_state < 7):
+        #     self.a_state += 1
+        # # if crouch is not currently enabled (regardless of whether it was already not enabled)
+        # elif (not self.curr_crouch_status) and (self.a_state > 0):
+        #     self.a_state -= 1
+        
+        print("state of a: ", self.a_state)
+
 
     def update_motion_direction(self) -> None:
         """Update the motion direction, given the (x,y) states from the left analog."""
@@ -382,24 +395,27 @@ class JoystickDataProcessor:
         return head_xzs, quad_bezier, base_velocities, facing_dirs
 
     def compute_head_xzs(self) -> List:
-        """Compute a linear array (vs. time) of future head x,z based on the desired crouch status. The array will contain fixed
-        interval changes in head x,z, moving toward the average upright walking head x,z if the crouch status is False and toward a constant 
-        lower reference head x,z if the crouch status is True.
+        """Compute an array (vs. time) of future head x,z based on the desired crouch status. The array will gradually propagage a constant 
+        upright or crouching head x,z, moving toward an upright position if the crouch status is False and toward a crouching position if the
+         crouch status is True.
         """
         upright_walking_head_xz = np.array([0.0, 0.0]) #this is nominal, measure from avg upright walking head x,z, average local head x position
-
+        crouching_head_xz = -np.array([0.11671078, 0.15290253])#-np.array([0.11671078, 0.15290253]) # this is nominal, measured avg diff from upright standing
+        # crouching_head_xz = -np.array([0.1019516, 0.1417656])#-np.array([0.11671078, 0.15290253]) # this is nominal, measured avg diff from upright walking
         head_xz = []
-        if self.curr_crouch_status: #crouching is turned on
-            head_xz_val = upright_walking_head_xz-np.array([0.11671078, 0.15290253]) #numbers are averages calculated from crouching dataset
 
-        else: #crouching is turned off
-            head_xz_val = upright_walking_head_xz #same as upright position
+        for i in range(self.t.size - self.a_state):
+            head_xz.append(upright_walking_head_xz) #array of all the same value
+        for i in range(self.a_state):
+            head_xz.append(crouching_head_xz) #array of all the same value
 
-        # Compute the array of future head x,z, all of which are the same value depending on whether crouching is enabled or not
-        # head_x = (head_xz*np.ones(self.t.size)).tolist()
-        for i in range(self.t.size):
-            head_xz.append(head_xz_val)
-            
+        # if crouch is currently enabled (regardless of whether it was already enabled)
+        if self.curr_crouch_status and (self.a_state < 7):
+            self.a_state += 1
+        # if crouch is not currently enabled (regardless of whether it was already not enabled)
+        elif (not self.curr_crouch_status) and (self.a_state > 0):
+            self.a_state -= 1
+
         return head_xz
 
     def compute_quadratic_bezier(self) -> List:
