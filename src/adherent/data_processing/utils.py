@@ -10,6 +10,7 @@ from scenario import core
 from scenario import gazebo as scenario
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import IKSolution
 from gym_ignition.rbd.idyntree import kindyncomputations
+from gym_ignition.rbd.conversions import Quaternion
 
 
 import matplotlib as mpl
@@ -218,16 +219,28 @@ def visualize_candidate_features(ik_solutions: List,
                             gazebo: scenario.GazeboSimulator) -> None:
 
     print(len(ik_solutions))
+
+    dt_mean = 1/50
+    frontal_base_dir = define_frontal_base_direction(robot="iCubV2_5")
+
     base_heights = np.empty(len(ik_solutions)-1)
     comxs = np.empty(len(ik_solutions)-1)
     comzs = np.empty(len(ik_solutions)-1)
     head_xs = np.empty(len(ik_solutions)-1)
     head_zs = np.empty(len(ik_solutions)-1)
+    pitch_vels = np.empty(len(ik_solutions)-1)
+    xz_base_directions = []
+    xz_base_directions.append([0.,0.])
+
+    yaw_vels = np.empty(len(ik_solutions)-1)
+    ground_base_directions = []
+    ground_base_directions.append([0.,0.])
     for i in range(1,len(ik_solutions)):
         # =================
         # BASE HEIGHTS
         # =================
         ik_solution = ik_solutions[i]
+        print(i)
 
         # Retrieve the base pose and the joint positions
         base_position = np.asarray(ik_solution["base_position"])
@@ -271,6 +284,40 @@ def visualize_candidate_features(ik_solutions: List,
         #Compute head x in local base frame
         current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
         head_xs[i-1] = current_local_head_pos[0]
+
+        # =================
+        # BASE PITCH VELOCITIES
+        # =================
+        # xz plane base direction
+        base_rotation = Quaternion.to_rotation(np.array(base_quaternion))
+        base_direction = base_rotation.dot(frontal_base_dir) # we are interested in the frontal base direction
+        xz_base_direction = [base_direction[0], base_direction[2]] # project on the xz plane
+        xz_base_direction = xz_base_direction / np.linalg.norm(xz_base_direction) # of unitary norm
+        xz_base_directions.append(xz_base_direction)
+
+        # Base pitch angular velocities by differentiation of xz base directions
+        xz_base_direction_prev = xz_base_directions[-2]
+        cos_phi = np.dot(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
+        sin_phi = np.cross(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
+        phi = math.atan2(sin_phi, cos_phi)
+        xz_base_angular_velocity = phi / dt_mean
+        pitch_vels[i-1] = xz_base_angular_velocity
+
+        # =================
+        # BASE YAW VELOCITIES
+        # =================
+        # ground plane base direction
+        ground_base_direction = [base_direction[0], base_direction[1]] # project on the ground plane
+        ground_base_direction = ground_base_direction / np.linalg.norm(ground_base_direction) # of unitary norm
+        ground_base_directions.append(ground_base_direction)
+
+        # Base yaw angular velocities by differentiation of ground base directions
+        ground_base_direction_prev = ground_base_directions[-2]
+        cos_theta = np.dot(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
+        sin_theta = np.cross(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
+        theta = math.atan2(sin_theta, cos_theta)
+        ground_base_angular_velocity = theta / dt_mean
+        yaw_vels[i-1] = ground_base_angular_velocity
 
     #make plots larger
     plt.rcParams['figure.figsize'] = [16,10]
@@ -382,8 +429,52 @@ def visualize_candidate_features(ik_solutions: List,
     plt.legend()
     plt.savefig('head_z_D4_19.png')
 
-    #Figure 6 for comparisons of transitions between crouching and walking upright
+    # Figure 6 for base pitch vel
     plt.figure(6)
+    plt.clf()
+
+    #Plot base pitch vel
+    plt.plot(range(1,len(ik_solutions)), pitch_vels, c='k', label='Base pitch velocity')
+
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+
+    plt.grid()
+    plt.title('Base pitch velocity for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Base pitch velocity (m)')
+    plt.legend()
+    plt.savefig('base_pitch_vel_D4_19.png')
+
+    # Figure 7 for base yaw vel
+    plt.figure(7)
+    plt.clf()
+
+    #Plot base yaw vel
+    plt.plot(range(1,len(ik_solutions)), yaw_vels, c='k', label='Base yaw velocity')
+
+    #Plot standing points (D4 portion 19, mixed walking)
+    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    for xc in xcoords:
+        if xc == 1:
+            plt.axvline(x=xc, linestyle='--', label='Standing points')
+        else:
+            plt.axvline(x=xc, linestyle='--')
+
+    plt.grid()
+    plt.title('Base yaw velocity for mixed walking (D4 portion 19)')
+    plt.xlabel('Timestep')
+    plt.ylabel('Base yaw velocity (m)')
+    plt.legend()
+    plt.savefig('base_yaw_vel_D4_19.png')
+
+    #Figure 8 for comparisons of transitions between crouching and walking upright
+    plt.figure(8)
     plt.clf()
 
     #create subplots where x and z plots are next to each other
