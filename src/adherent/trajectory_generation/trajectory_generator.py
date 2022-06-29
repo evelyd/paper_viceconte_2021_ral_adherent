@@ -1004,6 +1004,7 @@ class Autoregression:
     current_past_trajectory_facing_directions: List
     current_past_trajectory_base_velocities: List
     current_base_position: np.array
+    current_base_pitch: float
     current_base_yaw: float
     current_ground_base_position: List = field(default_factory=lambda: [0,0])
     current_facing_direction: List = field(default_factory=lambda: [1,0])
@@ -1021,6 +1022,7 @@ class Autoregression:
     new_world_R_facing: List = field(default_factory=list)
     new_facing_R_world: List = field(default_factory=list)
     new_ground_base_position: List = field(default_factory=list)
+    new_base_pitch: List = field(default_factory=list)
     new_base_yaw: List = field(default_factory=list)
 
     # Number of points constituting the Bezier curve
@@ -1040,6 +1042,7 @@ class Autoregression:
               initial_past_trajectory_facing_dirs: List,
               initial_past_trajectory_base_vel: List,
               initial_base_height: List,
+              initial_base_pitch: float,
               initial_base_yaw: float,
               frontal_base_direction: List,
               frontal_chest_direction: List,
@@ -1068,6 +1071,7 @@ class Autoregression:
                               current_past_trajectory_facing_directions=initial_past_trajectory_facing_dirs,
                               current_past_trajectory_base_velocities=initial_past_trajectory_base_vel,
                               current_base_position=np.array([0, 0, initial_base_height]),
+                              current_base_pitch=initial_base_pitch,
                               current_base_yaw=initial_base_yaw)
 
     def update_reference_frame(self, world_H_base: np.array, base_H_chest: np.array, base_H_head: np.array) -> None:
@@ -1446,6 +1450,7 @@ class Autoregression:
         self.current_world_R_facing = self.new_world_R_facing
         self.current_base_position = self.new_base_position
         self.current_ground_base_position = self.new_ground_base_position
+        self.current_base_pitch = self.new_base_pitch
         self.current_base_yaw = self.new_base_yaw
 
     def autoregression_and_blending(self, current_output: np.array, denormalized_current_output: np.array,
@@ -1527,6 +1532,7 @@ class TrajectoryGenerator:
               initial_past_trajectory_facing_dirs: List,
               initial_past_trajectory_base_vel: List,
               initial_base_height: List,
+              initial_base_pitch: float,
               initial_base_yaw: float,
               frontal_base_direction: List,
               frontal_chest_direction: List,
@@ -1567,6 +1573,7 @@ class TrajectoryGenerator:
                                               initial_past_trajectory_facing_dirs=initial_past_trajectory_facing_dirs,
                                               initial_past_trajectory_base_vel=initial_past_trajectory_base_vel,
                                               initial_base_height=initial_base_height,
+                                              initial_base_pitch=initial_base_pitch,
                                               initial_base_yaw=initial_base_yaw,
                                               frontal_base_direction=frontal_base_direction,
                                               frontal_chest_direction=frontal_chest_direction,
@@ -1628,12 +1635,15 @@ class TrajectoryGenerator:
         if self.autoregression.stopped:
             omega = 0
         else:
-            omega = denormalized_current_output[114]
+            omega = denormalized_current_output[115]
 
-        # Extract the new base orientation from the output
+        # Extract the new base pitch and yaw from the output
+        base_pitch_dot = denormalized_current_output[114] * self.generation_rate
+        new_base_pitch = self.autoregression.current_base_pitch + base_pitch_dot
+
         base_yaw_dot = omega * self.generation_rate
         new_base_yaw = self.autoregression.current_base_yaw + base_yaw_dot
-        new_base_rotation = Rotation.from_euler('xyz', [0, 0, new_base_yaw])
+        new_base_rotation = Rotation.from_euler('xyz', [0, new_base_pitch, new_base_yaw])
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
 
         # Update the base orientation and the joint positions in the robot configuration
@@ -1645,7 +1655,8 @@ class TrajectoryGenerator:
         self.kincomputations.reset_visual_robot_configuration(joint_positions=joint_positions,
                                                               base_quaternion=new_base_quaternion)
 
-        # Update the base yaw in the autoregression state
+        # Update the base pitch and yaw in the autoregression state
+        self.autoregression.new_base_pitch = new_base_pitch
         self.autoregression.new_base_yaw = new_base_yaw
 
         return joint_positions, new_base_quaternion
