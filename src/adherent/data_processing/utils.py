@@ -228,11 +228,12 @@ def visualize_candidate_features(ik_solutions: List,
     comzs = np.empty(len(ik_solutions)-1)
     head_xs = np.empty(len(ik_solutions)-1)
     head_zs = np.empty(len(ik_solutions)-1)
-    pitch_vels = np.empty(len(ik_solutions)-1)
     xz_base_directions = []
     xz_base_directions.append([0.,0.])
-
-    yaw_vels = np.empty(len(ik_solutions)-1)
+    cumulative_pitch = np.empty(len(ik_solutions))
+    cumulative_pitch[0] = 0.0
+    cumulative_yaw = np.empty(len(ik_solutions))
+    cumulative_yaw[0] = 0.0
     ground_base_directions = []
     ground_base_directions.append([0.,0.])
     for i in range(1,len(ik_solutions)):
@@ -300,8 +301,9 @@ def visualize_candidate_features(ik_solutions: List,
         cos_phi = np.dot(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
         sin_phi = np.cross(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
         phi = math.atan2(sin_phi, cos_phi)
-        xz_base_angular_velocity = phi / dt_mean
-        pitch_vels[i-1] = xz_base_angular_velocity
+        cumulative_pitch[i] = cumulative_pitch[i-1] + phi
+        # xz_base_angular_velocity = phi / dt_mean
+        # pitch_vels[i-1] = xz_base_angular_velocity
 
         # =================
         # BASE YAW VELOCITIES
@@ -316,8 +318,9 @@ def visualize_candidate_features(ik_solutions: List,
         cos_theta = np.dot(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
         sin_theta = np.cross(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
         theta = math.atan2(sin_theta, cos_theta)
-        ground_base_angular_velocity = theta / dt_mean
-        yaw_vels[i-1] = ground_base_angular_velocity
+        cumulative_yaw[i] = cumulative_yaw[i-1] + theta
+        # ground_base_angular_velocity = theta / dt_mean
+        # yaw_vels[i-1] = ground_base_angular_velocity
 
     #make plots larger
     plt.rcParams['figure.figsize'] = [16,10]
@@ -429,12 +432,12 @@ def visualize_candidate_features(ik_solutions: List,
     plt.legend()
     plt.savefig('head_z_D4_19.png')
 
-    # Figure 6 for base pitch vel
+    # Figure 6 for base pitch
     plt.figure(6)
     plt.clf()
 
-    #Plot base pitch vel
-    plt.plot(range(1,len(ik_solutions)), pitch_vels, c='k', label='Base pitch velocity')
+    #Plot base pitch
+    plt.plot(range(1,len(ik_solutions)+1), cumulative_pitch, c='k', label='Cumulative base pitch')
 
     #Plot standing points (D4 portion 19, mixed walking)
     xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
@@ -445,18 +448,18 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Base pitch velocity for mixed walking (D4 portion 19)')
+    plt.title('Cumulative base pitch for mixed walking (D4 portion 19)')
     plt.xlabel('Timestep')
-    plt.ylabel('Base pitch velocity (m)')
+    plt.ylabel('Base pitch (rad))')
     plt.legend()
-    plt.savefig('base_pitch_vel_D4_19.png')
+    plt.savefig('cumulative_base_pitch_D4_19.png')
 
-    # Figure 7 for base yaw vel
+    # Figure 7 for base yaw
     plt.figure(7)
     plt.clf()
 
-    #Plot base yaw vel
-    plt.plot(range(1,len(ik_solutions)), yaw_vels, c='k', label='Base yaw velocity')
+    #Plot base yaw
+    plt.plot(range(1,len(ik_solutions)+1), cumulative_yaw, c='k', label='Cumulative base yaw')
 
     #Plot standing points (D4 portion 19, mixed walking)
     xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
@@ -467,11 +470,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Base yaw velocity for mixed walking (D4 portion 19)')
+    plt.title('Cumulative base yaw for mixed walking (D4 portion 19)')
     plt.xlabel('Timestep')
-    plt.ylabel('Base yaw velocity (m)')
+    plt.ylabel('Base yaw (rad)')
     plt.legend()
-    plt.savefig('base_yaw_vel_D4_19.png')
+    plt.savefig('cumulative_base_yaw_D4_19.png')
 
     #Figure 8 for comparisons of transitions between crouching and walking upright
     plt.figure(8)
