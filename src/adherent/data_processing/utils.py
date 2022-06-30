@@ -332,7 +332,9 @@ def visualize_candidate_features(ik_solutions: List,
     #Plot base heights
     plt.plot(range(1,len(ik_solutions)), base_heights, c='k', label='Base height')
     #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    # xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    #Plot standing points (D4 portion 12, forward walking)
+    xcoords = [1,600,1600,2100,3100,4200,5900,6200,6500,9000,10000,10900,12100,15000,16200,16800,18700,19600,20400,21100,22700,23300,23800,24400,25400]
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -340,11 +342,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Base heights for mixed walking (D4 portion 19)')
+    plt.title('Base heights for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Global base height (m)')
     plt.legend()
-    plt.savefig('base_heights_D4_19.png')
+    plt.savefig('base_heights_D4_12.png')
 
     # Figure 2 for CoM x position (local)
     plt.figure(2)
@@ -352,8 +354,7 @@ def visualize_candidate_features(ik_solutions: List,
 
     #Plot CoM x
     plt.plot(range(1,len(ik_solutions)), comxs, c='k', label='CoM x')
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -361,11 +362,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('CoM x for mixed walking (D4 portion 19)')
+    plt.title('CoM x for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Local (measured from base) CoM x (m)')
     plt.legend()    
-    plt.savefig('com_x_D4_19.png')
+    plt.savefig('com_x_D4_12.png')
 
     # Figure 3 for CoM z position
     plt.figure(3)
@@ -373,8 +374,7 @@ def visualize_candidate_features(ik_solutions: List,
 
     #Plot CoM z
     plt.plot(range(1,len(ik_solutions)), comzs, c='k', label='CoM z')
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
+    #Plot standing points (D4 portion 12, mixed walking)
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -382,11 +382,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('CoM z for mixed walking (D4 portion 19)')
+    plt.title('CoM z for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Global CoM z (m)')
     plt.legend()
-    plt.savefig('com_z_D4_19.png')
+    plt.savefig('com_z_D4_12.png')
 
     # Figure 4 for head x
     plt.figure(4)
@@ -395,8 +395,6 @@ def visualize_candidate_features(ik_solutions: List,
     #Plot head x
     plt.plot(range(1,len(ik_solutions)), head_xs, c='k', label='Head x')
 
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -404,11 +402,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Head x for mixed walking (D4 portion 19)')
+    plt.title('Head x for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Local (measured from base) head x (m)')
     plt.legend()
-    plt.savefig('head_x_D4_19.png')
+    plt.savefig('head_x_D4_12.png')
 
     # Figure 5 for head z
     plt.figure(5)
@@ -417,8 +415,6 @@ def visualize_candidate_features(ik_solutions: List,
     #Plot head z
     plt.plot(range(1,len(ik_solutions)), head_zs, c='k', label='Head z')
 
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -426,11 +422,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Head z for mixed walking (D4 portion 19)')
+    plt.title('Head z for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Global head z (m)')
     plt.legend()
-    plt.savefig('head_z_D4_19.png')
+    plt.savefig('head_z_D4_12.png')
 
     # Figure 6 for base pitch
     plt.figure(6)
@@ -439,8 +435,6 @@ def visualize_candidate_features(ik_solutions: List,
     #Plot base pitch
     plt.plot(range(1,len(ik_solutions)+1), cumulative_pitch, c='k', label='Cumulative base pitch')
 
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -448,11 +442,11 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Cumulative base pitch for mixed walking (D4 portion 19)')
+    plt.title('Cumulative base pitch for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Base pitch (rad))')
     plt.legend()
-    plt.savefig('cumulative_base_pitch_D4_19.png')
+    plt.savefig('cumulative_base_pitch_D4_12.png')
 
     # Figure 7 for base yaw
     plt.figure(7)
@@ -461,8 +455,6 @@ def visualize_candidate_features(ik_solutions: List,
     #Plot base yaw
     plt.plot(range(1,len(ik_solutions)+1), cumulative_yaw, c='k', label='Cumulative base yaw')
 
-    #Plot standing points (D4 portion 19, mixed walking)
-    xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
     for xc in xcoords:
         if xc == 1:
             plt.axvline(x=xc, linestyle='--', label='Standing points')
@@ -470,106 +462,106 @@ def visualize_candidate_features(ik_solutions: List,
             plt.axvline(x=xc, linestyle='--')
 
     plt.grid()
-    plt.title('Cumulative base yaw for mixed walking (D4 portion 19)')
+    plt.title('Cumulative base yaw for mixed walking (D4 portion 12)')
     plt.xlabel('Timestep')
     plt.ylabel('Base yaw (rad)')
     plt.legend()
-    plt.savefig('cumulative_base_yaw_D4_19.png')
+    plt.savefig('cumulative_base_yaw_D4_12.png')
 
-    #Figure 8 for comparisons of transitions between crouching and walking upright
-    plt.figure(8)
-    plt.clf()
+    # #Figure 8 for comparisons of transitions between crouching and walking upright
+    # plt.figure(8)
+    # plt.clf()
 
-    #create subplots where x and z plots are next to each other
-    xcoords = [700,800,850,925]
-    plt.subplot(2,4,1)
-    plt.plot(range(400,1000), head_xs[400:1000], c='k', label='Head x')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.ylabel('Global head x (m)')
-    plt.xticks(rotation = 45)
-    plt.grid()
-    plt.subplot(2,4,5)
-    plt.plot(range(400,1000), head_zs[400:1000], c='b', label='Head z')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xlabel('Timestep')
-    plt.ylabel('Global head z (m)')
-    plt.xticks(rotation = 45)
-    plt.grid()
+    # #create subplots where x and z plots are next to each other
+    # xcoords = [700,800,850,925]
+    # plt.subplot(2,4,1)
+    # plt.plot(range(400,1000), head_xs[400:1000], c='k', label='Head x')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.ylabel('Global head x (m)')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
+    # plt.subplot(2,4,5)
+    # plt.plot(range(400,1000), head_zs[400:1000], c='b', label='Head z')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xlabel('Timestep')
+    # plt.ylabel('Global head z (m)')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
 
-    xcoords = [6200,6270,6350,6425]
-    plt.subplot(2,4,2)
-    plt.plot(range(6000,6600), head_xs[6000:6600], c='k', label='Head x')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xticks(rotation = 45)
-    plt.grid()
-    plt.subplot(2,4,6)
-    plt.plot(range(6000,6600), head_zs[6000:6600], c='b', label='Head z')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xlabel('Timestep')
-    plt.xticks(rotation = 45)
-    plt.grid()
+    # xcoords = [6200,6270,6350,6425]
+    # plt.subplot(2,4,2)
+    # plt.plot(range(6000,6600), head_xs[6000:6600], c='k', label='Head x')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
+    # plt.subplot(2,4,6)
+    # plt.plot(range(6000,6600), head_zs[6000:6600], c='b', label='Head z')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xlabel('Timestep')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
 
-    xcoords = [23000,23075,23150,23225]
-    plt.subplot(2,4,3)
-    plt.plot(range(22700,23300), head_xs[22700:23300], c='k', label='Head x')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xticks(rotation = 45)
-    plt.grid()
-    plt.subplot(2,4,7)
-    plt.plot(range(22700,23300), head_zs[22700:23300], c='b', label='Head z')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xlabel('Timestep')
-    plt.xticks(rotation = 45)
-    plt.grid()
+    # xcoords = [23000,23075,23150,23225]
+    # plt.subplot(2,4,3)
+    # plt.plot(range(22700,23300), head_xs[22700:23300], c='k', label='Head x')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
+    # plt.subplot(2,4,7)
+    # plt.plot(range(22700,23300), head_zs[22700:23300], c='b', label='Head z')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xlabel('Timestep')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
 
-    xcoords = [28070,28150,28200,28300]
-    plt.subplot(2,4,4)
-    plt.plot(range(27800,28400), head_xs[27800:28400], c='k', label='Head x')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xticks(rotation = 45)
-    plt.grid()
-    plt.subplot(2,4,8)
-    plt.plot(range(27800,28400), head_zs[27800:28400], c='b', label='Head z')
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-    plt.xlabel('Timestep')
-    plt.xticks(rotation = 45)
-    plt.grid()
+    # xcoords = [28070,28150,28200,28300]
+    # plt.subplot(2,4,4)
+    # plt.plot(range(27800,28400), head_xs[27800:28400], c='k', label='Head x')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
+    # plt.subplot(2,4,8)
+    # plt.plot(range(27800,28400), head_zs[27800:28400], c='b', label='Head z')
+    # for xc in xcoords:
+    #     if xc == 1:
+    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
+    #     else:
+    #         plt.axvline(x=xc, linestyle='--')
+    # plt.xlabel('Timestep')
+    # plt.xticks(rotation = 45)
+    # plt.grid()
 
-    plt.suptitle('Head x,z transitions for mixed walking (D4 portion 19)')
+    # plt.suptitle('Head x,z transitions for mixed walking (D4 portion 19)')
 
-    plt.savefig('head_transitions_D4_19.png')
+    # plt.savefig('head_transitions_D4_19.png')
 
     # Plot
     plt.show()
