@@ -17,6 +17,7 @@ from gym_ignition.rbd.idyntree import kindyncomputations
 from adherent.data_processing.utils import define_foot_vertices
 from adherent.trajectory_generation import trajectory_generator
 from adherent.trajectory_generation.utils import define_initial_nn_X
+from adherent.trajectory_generation.utils import define_initial_base_pitch
 from adherent.trajectory_generation.utils import define_initial_base_yaw
 from adherent.data_processing.utils import define_frontal_base_direction
 from adherent.data_processing.utils import define_frontal_chest_direction
@@ -131,6 +132,9 @@ initial_nn_X = define_initial_nn_X(robot="iCubV2_5")
 initial_past_trajectory_head_xzs, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel = \
     define_initial_past_trajectory(robot="iCubV2_5")
 
+# Define robot-specific initial base pitch angle
+initial_base_pitch = define_initial_base_pitch(robot="iCubV2_5")
+
 # Define robot-specific initial base yaw angle
 initial_base_yaw = define_initial_base_yaw(robot="iCubV2_5")
 
@@ -149,6 +153,7 @@ generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gaz
                                                            initial_past_trajectory_facing_dirs=initial_past_trajectory_facing_dirs,
                                                            initial_past_trajectory_base_vel=initial_past_trajectory_base_vel,
                                                            initial_base_height=initial_base_height,
+                                                           initial_base_pitch=initial_base_pitch,
                                                            initial_base_yaw=initial_base_yaw,
                                                            frontal_base_direction=frontal_base_dir,
                                                            frontal_chest_direction=frontal_chest_dir)

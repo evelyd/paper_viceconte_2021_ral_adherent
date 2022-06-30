@@ -390,6 +390,17 @@ def define_reference_head_xz(robot: str) -> List:
 
     return reference_head_xz
 
+def define_initial_base_pitch(robot: str) -> List:
+    """Define the robot-specific initial base pitch expressed in the world frame."""
+
+    if robot != "iCubV2_5":
+        raise Exception("Initial base pitch only defined for iCubV2_5.")
+
+    # For iCubV2_5, the initial base pitch is 0 degs
+    initial_base_pitch = 0.0
+
+    return initial_base_pitch
+
 def define_initial_base_yaw(robot: str) -> List:
     """Define the robot-specific initial base yaw expressed in the world frame."""
 
