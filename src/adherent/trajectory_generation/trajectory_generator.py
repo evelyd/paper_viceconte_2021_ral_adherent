@@ -356,9 +356,13 @@ class KinematicComputations:
     local_foot_vertices_pos: List
     support_vertex_prev: int = 0
     support_vertex: int = 0
+    other_vertex: int = 0 # this is the vertex with which we calculate the foot angle
     support_foot_prev: str = "r_foot"
     support_foot: str = "r_foot"
     support_foot_pos: float = 0
+    other_vertex_pos: float = 0 # this is the position of the vertex with which we calculate the foot angle
+    foot_pitch: float = 0 # this is the calculated pitch of the support foot
+    base_pitch: float = 0 # this is the current base pitch 
     support_vertex_pos: float = 0
     support_vertex_offset: float = 0
 
@@ -562,6 +566,15 @@ class KinematicComputations:
         vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
         self.support_vertex = np.argmin(vertices_heights)
 
+        # Calculate offset base pitch based on which foot is in contact and which vertex    
+        if (self.support_vertex % 4) < 2: #if the support vertex is front of foot, other vertex becomes back of foot, same side
+            self.other_vertex = self.support_vertex + 2
+        else: #if the support foot is the back of the foot, other vertex becomes front of foot, same side
+            self.other_vertex = self.support_vertex - 2
+
+        # Calculate the angle between the foot plane (using support and other vertex) and the ground plane (world frame)
+
+
         # Check whether the deactivation time of the last footstep needs to be updated
         update_footstep_deactivation_time = self.footsteps_extractor.should_update_footstep_deactivation_time(kindyn=self.kindyn)
 
@@ -605,8 +618,16 @@ class KinematicComputations:
 
             # Update support vertex prev
             self.support_vertex_prev = self.support_vertex
+        
+        # Calculate the foot pitch
+        self.other_vertex_pos = W_vertices_positions[self.other_vertex]
+        foot_vector = self.other_vertex_pos - self.support_vertex_pos
+        self.foot_pitch = np.arctan(foot_vector[2]/foot_vector[0])
 
-        return self.support_foot, update_footstep_deactivation_time, update_footsteps_list
+        # Grab the base pitch
+        self.base_pitch = np.arctan(-world_H_base[2][0]/np.sqrt(world_H_base[2][1] ** 2 + world_H_base[2][2] ** 2))
+
+        return self.base_pitch, self.foot_pitch, self.support_foot, update_footstep_deactivation_time, update_footsteps_list
 
 
 @dataclass
@@ -1618,7 +1639,7 @@ class TrajectoryGenerator:
 
         return current_output, denormalized_current_output, current_blending_coefficients
 
-    def apply_joint_positions_and_base_orientation(self, denormalized_current_output: List) -> (List, List):
+    def apply_joint_positions_and_base_orientation(self, base_pitch, foot_pitch, denormalized_current_output: List) -> (List, List):
         """Apply joint positions and base orientation from the output returned by the network."""
 
         # Extract the new joint positions from the denormalized network output
@@ -1633,7 +1654,7 @@ class TrajectoryGenerator:
         # Extract the new base orientation from the output
         base_yaw_dot = omega * self.generation_rate
         new_base_yaw = self.autoregression.current_base_yaw + base_yaw_dot
-        new_base_rotation = Rotation.from_euler('xyz', [0, 0, new_base_yaw])
+        new_base_rotation = Rotation.from_euler('xyz', [0, base_pitch-foot_pitch, new_base_yaw])
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
 
         # Update the base orientation and the joint positions in the robot configuration
@@ -1655,7 +1676,7 @@ class TrajectoryGenerator:
         time of the last footstep."""
 
         # Update support foot and support vertex while detecting new footsteps and deactivation time updates
-        support_foot, update_deactivation_time, update_footsteps_list = self.kincomputations.update_support_vertex_and_support_foot()
+        base_pitch, foot_pitch, support_foot, update_deactivation_time, update_footsteps_list = self.kincomputations.update_support_vertex_and_support_foot()
 
         if update_deactivation_time:
 
@@ -1681,7 +1702,7 @@ class TrajectoryGenerator:
             # Update the footsteps storage
             self.storage.update_footsteps_storage(support_foot=support_foot, footstep=new_footstep)
 
-        return support_foot, update_footsteps_list
+        return base_pitch, foot_pitch, support_foot, update_footsteps_list
 
     def compute_kinematically_fasible_base_and_update_posturals(self, joint_positions: List,
                                                                 base_quaternion: List, controlled_joints: List,
