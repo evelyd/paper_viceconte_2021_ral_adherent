@@ -621,11 +621,27 @@ class KinematicComputations:
         
         # Calculate the foot pitch
         self.other_vertex_pos = W_vertices_positions[self.other_vertex]
-        foot_vector = self.other_vertex_pos - self.support_vertex_pos
-        self.foot_pitch = np.arctan(foot_vector[2]/foot_vector[0])
 
+        # Get the unit vector of the foot in the xz plane
+        foot_vector = self.other_vertex_pos - self.support_vertex_pos
+        foot_vector = [foot_vector[0], foot_vector[2]]
+        foot_vector = foot_vector / np.linalg.norm(foot_vector) # of unitary norm
+
+        # Get the unit vector of the x axis (in same direction as foot vector) in the xz plane
+        x_vector = np.array([foot_vector[0], 0])
+        x_vector = x_vector / np.linalg.norm(x_vector) # of unitary norm
+
+        cos_foot_pitch = np.dot(x_vector, foot_vector) # unitary norm vectors
+        sin_foot_pitch = np.cross(x_vector, foot_vector) # unitary norm vectors
+        self.foot_pitch = math.atan2(sin_foot_pitch, cos_foot_pitch)
+        # self.foot_pitch = np.arctan(foot_vector[2]/foot_vector[0])
+        
         # Grab the base pitch
-        self.base_pitch = np.arctan(-world_H_base[2][0]/np.sqrt(world_H_base[2][1] ** 2 + world_H_base[2][2] ** 2))
+        base_quat = Quaternion.from_matrix(world_H_base[0:3, 0:3]) #first convert rotation world->base matrix to quaternion
+        W_R_base = Rotation.from_quat(Quaternion.to_xyzw(np.asarray(base_quat))) #then convert quaternion to Rotation object
+        W_RPY_base = Rotation.as_euler(W_R_base, 'xyz') #finally convert Rotation object to roll pitch yaw form
+        self.base_pitch = W_RPY_base[1] #take only the pitch from the RPY object
+        # self.base_pitch = np.arctan(-world_H_base[2][0] / np.sqrt(world_H_base[2][1] ** 2 + world_H_base[2][2] ** 2)) #base_rotation[1] #
 
         return self.base_pitch, self.foot_pitch, self.support_foot, update_footstep_deactivation_time, update_footsteps_list
 
