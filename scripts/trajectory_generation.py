@@ -139,12 +139,10 @@ frontal_base_dir = define_frontal_base_direction(robot="iCubV2_5")
 frontal_chest_dir = define_frontal_chest_direction(robot="iCubV2_5")
 
 # Define the initial foot pitch to be 0
-initial_foot_pitch = 0
-foot_pitch = initial_foot_pitch
+foot_roll_pitch = [0.,0.]
 
 # Define the initial base pitch to be 0
-initial_base_pitch = 0
-base_pitch = initial_base_pitch
+base_roll_pitch = [0.,0.]
 
 # Instantiate the trajectory generator
 generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gazebo, kindyn=kindyn,
@@ -184,10 +182,10 @@ with tf.Session(config=config) as sess:
 
         # Apply the joint positions and the base orientation from the network output
         joint_positions, new_base_quaternion = \
-            generator.apply_joint_positions_and_base_orientation(base_pitch, foot_pitch, denormalized_current_output=denormalized_current_output)
+            generator.apply_joint_positions_and_base_orientation(base_roll_pitch, foot_roll_pitch, denormalized_current_output=denormalized_current_output)
 
         # Update the support foot and vertex while detecting new footsteps
-        base_pitch, foot_pitch, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
+        base_roll_pitch, foot_roll_pitch, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
 
         if update_footsteps_list and plot_footsteps:
 

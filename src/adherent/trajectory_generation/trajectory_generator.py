@@ -361,8 +361,8 @@ class KinematicComputations:
     support_foot: str = "r_foot"
     support_foot_pos: float = 0
     other_vertex_pos: float = 0 # this is the position of the vertex with which we calculate the foot angle
-    foot_pitch: float = 0 # this is the calculated pitch of the support foot
-    base_pitch: float = 0 # this is the current base pitch 
+    foot_roll_pitch: float = 0 # this is the calculated pitch of the support foot
+    base_roll_pitch: float = 0 # this is the current base pitch 
     support_vertex_pos: float = 0
     support_vertex_offset: float = 0
 
@@ -566,15 +566,6 @@ class KinematicComputations:
         vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
         self.support_vertex = np.argmin(vertices_heights)
 
-        # Calculate offset base pitch based on which foot is in contact and which vertex    
-        if (self.support_vertex % 4) < 2: #if the support vertex is front of foot, other vertex becomes back of foot, same side
-            self.other_vertex = self.support_vertex + 2
-        else: #if the support foot is the back of the foot, other vertex becomes front of foot, same side
-            self.other_vertex = self.support_vertex - 2
-
-        # Calculate the angle between the foot plane (using support and other vertex) and the ground plane (world frame)
-
-
         # Check whether the deactivation time of the last footstep needs to be updated
         update_footstep_deactivation_time = self.footsteps_extractor.should_update_footstep_deactivation_time(kindyn=self.kindyn)
 
@@ -618,32 +609,31 @@ class KinematicComputations:
 
             # Update support vertex prev
             self.support_vertex_prev = self.support_vertex
-        
-        # Calculate the foot pitch
-        self.other_vertex_pos = W_vertices_positions[self.other_vertex]
 
-        # Get the unit vector of the foot in the xz plane
-        foot_vector = self.other_vertex_pos - self.support_vertex_pos
-        foot_vector = [foot_vector[0], foot_vector[2]]
-        foot_vector = foot_vector / np.linalg.norm(foot_vector) # of unitary norm
+        # Grab the foot roll and pitch
+        # R_z_foot = Rotation.from_euler('z', np.pi) #this rotates the foot frame around the z axis to put it in same direction as base
+        print("foot rotation from world: ", W_H_SF[0:3, 0:3])
+        foot_quat = Quaternion.from_matrix(W_H_SF[0:3, 0:3]) #convert rotation world->foot matrix to quaternion
+        W_R_foot = Rotation.from_quat(Quaternion.to_xyzw(np.asarray(foot_quat))) #then convert quaternion to Rotation object
+        # R_foot_turned = W_R_foot*R_z_foot
+        # R_foot_turned = Rotation.concatenate(R_z_foot, W_R_foot) #this is the SF expressed in the world frame but the x axis is pi degrees rotated
+        W_RPY_foot = Rotation.as_euler(W_R_foot, 'xyz') #finally convert Rotation object to roll pitch yaw form
+        self.foot_roll_pitch = [W_RPY_foot[0], W_RPY_foot[1]] #take only the roll and pitch from the RPY object
 
-        # Get the unit vector of the x axis (in same direction as foot vector) in the xz plane
-        x_vector = np.array([foot_vector[0], 0])
-        x_vector = x_vector / np.linalg.norm(x_vector) # of unitary norm
-
-        cos_foot_pitch = np.dot(x_vector, foot_vector) # unitary norm vectors
-        sin_foot_pitch = np.cross(x_vector, foot_vector) # unitary norm vectors
-        self.foot_pitch = math.atan2(sin_foot_pitch, cos_foot_pitch)
-        # self.foot_pitch = np.arctan(foot_vector[2]/foot_vector[0])
-        
-        # Grab the base pitch
+        # Grab the base roll and pitch
+        R_y_base = Rotation.from_euler('y', np.pi) #this rotates the base frame around the z axis to put x axis in same dir as foot
+        # R_x_base = Rotation.from_euler('x', np.pi) #this rotates the base frame around the x axis to put the y axis in same dir as foot
         base_quat = Quaternion.from_matrix(world_H_base[0:3, 0:3]) #first convert rotation world->base matrix to quaternion
         W_R_base = Rotation.from_quat(Quaternion.to_xyzw(np.asarray(base_quat))) #then convert quaternion to Rotation object
+        R_base_turned = R_y_base*W_R_base
+        print("base rotation from world: ", world_H_base[0:3, 0:3])
+        print("turned around y axis: ", R_base_turned.as_matrix())
         W_RPY_base = Rotation.as_euler(W_R_base, 'xyz') #finally convert Rotation object to roll pitch yaw form
-        self.base_pitch = W_RPY_base[1] #take only the pitch from the RPY object
-        # self.base_pitch = np.arctan(-world_H_base[2][0] / np.sqrt(world_H_base[2][1] ** 2 + world_H_base[2][2] ** 2)) #base_rotation[1] #
+        self.base_roll_pitch = [W_RPY_base[0], W_RPY_base[1]] #take only the roll and pitch from the RPY object
+        print("base RP: ", self.base_roll_pitch)
+        # self.base_roll_pitch = np.arctan(-world_H_base[2][0] / np.sqrt(world_H_base[2][1] ** 2 + world_H_base[2][2] ** 2)) #base_rotation[1] #
 
-        return self.base_pitch, self.foot_pitch, self.support_foot, update_footstep_deactivation_time, update_footsteps_list
+        return self.base_roll_pitch, self.foot_roll_pitch, self.support_foot, update_footstep_deactivation_time, update_footsteps_list
 
 
 @dataclass
@@ -1655,7 +1645,7 @@ class TrajectoryGenerator:
 
         return current_output, denormalized_current_output, current_blending_coefficients
 
-    def apply_joint_positions_and_base_orientation(self, base_pitch, foot_pitch, denormalized_current_output: List) -> (List, List):
+    def apply_joint_positions_and_base_orientation(self, base_roll_pitch, foot_roll_pitch, denormalized_current_output: List) -> (List, List):
         """Apply joint positions and base orientation from the output returned by the network."""
 
         # Extract the new joint positions from the denormalized network output
@@ -1670,8 +1660,16 @@ class TrajectoryGenerator:
         # Extract the new base orientation from the output
         base_yaw_dot = omega * self.generation_rate
         new_base_yaw = self.autoregression.current_base_yaw + base_yaw_dot
-        new_base_rotation = Rotation.from_euler('xyz', [0, base_pitch-foot_pitch, new_base_yaw])
+
+        corrected_roll = base_roll_pitch[0] + foot_roll_pitch[0] #this is a 2-element array
+        corrected_pitch = base_roll_pitch[1] + foot_roll_pitch[1] #this is a 2-element array
+        new_base_rotation = Rotation.from_euler('xyz', [0, corrected_pitch, new_base_yaw])
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
+        print("base roll ", base_roll_pitch[0], " + foot roll ", foot_roll_pitch[0])
+        print("base pitch ", base_roll_pitch[1], " + foot pitch ", foot_roll_pitch[1])
+        print("corrected base roll,pitch: ", corrected_roll, corrected_pitch)
+
+        # input("Press enter to go to next step")
 
         # Update the base orientation and the joint positions in the robot configuration
         self.kincomputations.reset_robot_configuration(joint_positions=joint_positions,
@@ -1692,7 +1690,7 @@ class TrajectoryGenerator:
         time of the last footstep."""
 
         # Update support foot and support vertex while detecting new footsteps and deactivation time updates
-        base_pitch, foot_pitch, support_foot, update_deactivation_time, update_footsteps_list = self.kincomputations.update_support_vertex_and_support_foot()
+        base_roll_pitch, foot_roll_pitch, support_foot, update_deactivation_time, update_footsteps_list = self.kincomputations.update_support_vertex_and_support_foot()
 
         if update_deactivation_time:
 
@@ -1718,7 +1716,7 @@ class TrajectoryGenerator:
             # Update the footsteps storage
             self.storage.update_footsteps_storage(support_foot=support_foot, footstep=new_footstep)
 
-        return base_pitch, foot_pitch, support_foot, update_footsteps_list
+        return base_roll_pitch, foot_roll_pitch, support_foot, update_footsteps_list
 
     def compute_kinematically_fasible_base_and_update_posturals(self, joint_positions: List,
                                                                 base_quaternion: List, controlled_joints: List,
