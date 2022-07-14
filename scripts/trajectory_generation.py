@@ -14,6 +14,7 @@ from scenario import gazebo as scenario
 from adherent.data_processing.utils import iCub
 from gym_ignition.utils.scenario import init_gazebo_sim
 from gym_ignition.rbd.idyntree import kindyncomputations
+from gym_ignition.rbd.conversions import Rotation
 from adherent.data_processing.utils import define_foot_vertices
 from adherent.trajectory_generation import trajectory_generator
 from adherent.trajectory_generation.utils import define_initial_nn_X
@@ -138,11 +139,8 @@ initial_base_yaw = define_initial_base_yaw(robot="iCubV2_5")
 frontal_base_dir = define_frontal_base_direction(robot="iCubV2_5")
 frontal_chest_dir = define_frontal_chest_direction(robot="iCubV2_5")
 
-# Define the initial foot pitch to be 0
-foot_roll_pitch = [0.,0.]
-
-# Define the initial base pitch to be 0
-base_roll_pitch = [0.,0.]
+#Initialize corrective rotation matrix
+R_correction = Rotation.identity()
 
 # Instantiate the trajectory generator
 generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gazebo, kindyn=kindyn,
@@ -182,10 +180,10 @@ with tf.Session(config=config) as sess:
 
         # Apply the joint positions and the base orientation from the network output
         joint_positions, new_base_quaternion = \
-            generator.apply_joint_positions_and_base_orientation(base_roll_pitch, foot_roll_pitch, denormalized_current_output=denormalized_current_output)
+            generator.apply_joint_positions_and_base_orientation(R_correction, denormalized_current_output=denormalized_current_output)
 
         # Update the support foot and vertex while detecting new footsteps
-        base_roll_pitch, foot_roll_pitch, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
+        R_correction, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
 
         if update_footsteps_list and plot_footsteps:
 
