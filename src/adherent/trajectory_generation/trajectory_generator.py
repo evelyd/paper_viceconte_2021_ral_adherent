@@ -615,23 +615,23 @@ class KinematicComputations:
 
         # Calculate the transformation from world to support sole
         base_H_support_sole = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name=self.support_sole)
-        W_H_SS = world_H_base.dot(base_H_support_sole)
+        # W_H_SS = world_H_base.dot(base_H_support_sole)
 
         #Extract the rotation matrix
-        W_R_SS = W_H_SS[0:3, 0:3]
+        base_R_SS = base_H_support_sole[0:3, 0:3]
 
         # Define the z axis for the world frame
         z_W = [0,0,1]
 
         # Calculate the z axis for the support sole frame
-        z_SS = W_R_SS.dot(z_W)
+        z_SS = base_R_SS.dot(z_W)
 
         # Get the axis of rotation from world to sole (unit normed for rotation matrix later)
         W_rot_axis_SS = np.cross(z_W, z_SS)
         W_rot_axis_SS = W_rot_axis_SS / np.linalg.norm(W_rot_axis_SS)
 
         # Get the angle of rotation along the axis of rotation
-        alpha = math.acos(np.dot(z_W, z_SS))
+        alpha = math.acos(np.dot(z_SS, z_W))
 
         # Create rotation vector by multiplying the rot axis by the angle
         W_rot_vec_SS = alpha*W_rot_axis_SS
