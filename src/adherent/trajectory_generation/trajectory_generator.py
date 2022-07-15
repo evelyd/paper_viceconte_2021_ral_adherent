@@ -635,7 +635,6 @@ class KinematicComputations:
 
         # Create rotation vector by multiplying the rot axis by the angle
         W_rot_vec_SS = alpha*W_rot_axis_SS
-        print("rot vec W_rot_axis_SS: ", W_rot_vec_SS)
 
         # Reconstruct a rotation matrix that puts the foot flat on the ground
         R_correction = Rotation.from_rotvec(W_rot_vec_SS)
