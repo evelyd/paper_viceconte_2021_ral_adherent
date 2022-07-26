@@ -119,7 +119,7 @@ class StorageHandler:
             json.dump(self.blending_coeffs, outfile)
 
         # Debug
-        input("\nData have been saved. Press Enter to continue the trajectory generation.")
+        # input("\nData have been saved. Press Enter to continue the trajectory generation.")
 
 
 @dataclass
@@ -1663,14 +1663,19 @@ class TrajectoryGenerator:
         else:
             omega = denormalized_current_output[114]
 
+        x_vel = denormalized_current_output[112]
+        y_vel = denormalized_current_output[113]
+        #need current_base_position and add to it the delta
+        self.autoregression.current_base_position = self.autoregression.current_base_position + self.generation_rate * np.array([x_vel, -y_vel, 0])
+
         # Extract the new base orientation from the output
         base_yaw_dot = omega * self.generation_rate
         new_base_yaw = self.autoregression.current_base_yaw + base_yaw_dot
 
-        # new_base_rotation = Rotation.from_euler('xyz', [0, corrected_pitch, new_base_yaw])
+        # new_base_rotation = Rotation.from_euler('xyz', [0, 0, new_base_yaw])
         # Get inverse of current foot rotation 
-        R_correct_base = R_correction.inv()
-        new_base_rotation = Rotation.from_euler('z', new_base_yaw)*R_correct_base
+        # R_correct_base = R_correction.inv()
+        new_base_rotation = Rotation.from_euler('z', new_base_yaw)#*R_correct_base
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
 
         # input("Press enter to go to next step")
@@ -1682,10 +1687,14 @@ class TrajectoryGenerator:
 
         # Update the base base orientation and the joint positions in the configuration of the robot visualized in the simulator
         self.kincomputations.reset_visual_robot_configuration(joint_positions=joint_positions,
+                                                              base_position=self.autoregression.current_base_position,
                                                               base_quaternion=new_base_quaternion)
 
         # Update the base yaw in the autoregression state
         self.autoregression.new_base_yaw = new_base_yaw
+        print("x vel: ", x_vel)
+        print("y vel: ", y_vel)
+        print("new_base_position: ", self.autoregression.current_base_position)
 
         return joint_positions, new_base_quaternion
 

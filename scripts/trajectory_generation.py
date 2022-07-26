@@ -183,21 +183,21 @@ with tf.Session(config=config) as sess:
             generator.apply_joint_positions_and_base_orientation(R_correction, denormalized_current_output=denormalized_current_output)
 
         # Update the support foot and vertex while detecting new footsteps
-        R_correction, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
+        # R_correction, support_foot, update_footsteps_list = generator.update_support_vertex_and_support_foot_and_footsteps()
 
-        if update_footsteps_list and plot_footsteps:
+        # if update_footsteps_list and plot_footsteps:
 
-            # Plot the last footstep
-            generator.plotter.plot_new_footstep(figure_footsteps=figure_footsteps,
-                                                support_foot=support_foot,
-                                                new_footstep=generator.storage.footsteps[support_foot][-1])
+        #     # Plot the last footstep
+        #     generator.plotter.plot_new_footstep(figure_footsteps=figure_footsteps,
+        #                                         support_foot=support_foot,
+        #                                         new_footstep=generator.storage.footsteps[support_foot][-1])
 
-        # Compute kinematically-feasible base position and updated posturals
-        new_base_postural, new_joints_postural, new_links_postural, new_com_postural = \
-            generator.compute_kinematically_fasible_base_and_update_posturals(joint_positions=joint_positions,
-                                                                              base_quaternion=new_base_quaternion,
-                                                                              controlled_joints=controlled_joints,
-                                                                              link_names=icub.link_names())
+        # # Compute kinematically-feasible base position and updated posturals
+        # new_base_postural, new_joints_postural, new_links_postural, new_com_postural = \
+        #     generator.compute_kinematically_fasible_base_and_update_posturals(joint_positions=joint_positions,
+        #                                                                       base_quaternion=new_base_quaternion,
+        #                                                                       controlled_joints=controlled_joints,
+        #                                                                       link_names=icub.link_names())
 
         # Retrieve user input data from YARP port
         head_xzs, quad_bezier, base_velocities, facing_dirs, raw_data = \
@@ -217,46 +217,46 @@ with tf.Session(config=config) as sess:
                                                   facing_dirs=facing_dirs,
                                                   base_velocities=base_velocities)
 
-        # Update storage and periodically save data
-        generator.update_storages_and_save(blending_coefficients=current_blending_coefficients,
-                                           base_postural=new_base_postural,
-                                           joints_postural=new_joints_postural,
-                                           links_postural=new_links_postural,
-                                           com_postural=new_com_postural,
-                                           raw_data=raw_data,
-                                           head_xzs=head_xzs,
-                                           quad_bezier=quad_bezier,
-                                           base_velocities=base_velocities,
-                                           facing_dirs=facing_dirs,
-                                           save_every_N_iterations=save_every_N_iterations)
+        # # Update storage and periodically save data
+        # generator.update_storages_and_save(blending_coefficients=current_blending_coefficients,
+        #                                    base_postural=new_base_postural,
+        #                                    joints_postural=new_joints_postural,
+        #                                    links_postural=new_links_postural,
+        #                                    com_postural=new_com_postural,
+        #                                    raw_data=raw_data,
+        #                                    head_xzs=head_xzs,
+        #                                    quad_bezier=quad_bezier,
+        #                                    base_velocities=base_velocities,
+        #                                    facing_dirs=facing_dirs,
+        #                                    save_every_N_iterations=save_every_N_iterations)
 
-        if plot_trajectory_blending:
-            # Plot the trajectory blending
-            generator.plotter.plot_trajectory_blending(figure_head_xzs=figure_head_xzs,
-                                                       figure_facing_dirs=figure_facing_dirs,
-                                                       figure_base_vel=figure_base_vel,
-                                                       denormalized_current_output=denormalized_current_output,
-                                                       head_xzs=head_xzs,
-                                                       quad_bezier=quad_bezier, facing_dirs=facing_dirs,
-                                                       base_velocities=base_velocities,
-                                                       blended_head_xzs=blended_head_xzs,
-                                                       blended_base_positions=blended_base_positions,
-                                                       blended_facing_dirs=blended_facing_dirs,
-                                                       blended_base_velocities=blended_base_velocities)
+        # if plot_trajectory_blending:
+        #     # Plot the trajectory blending
+        #     generator.plotter.plot_trajectory_blending(figure_head_xzs=figure_head_xzs,
+        #                                                figure_facing_dirs=figure_facing_dirs,
+        #                                                figure_base_vel=figure_base_vel,
+        #                                                denormalized_current_output=denormalized_current_output,
+        #                                                head_xzs=head_xzs,
+        #                                                quad_bezier=quad_bezier, facing_dirs=facing_dirs,
+        #                                                base_velocities=base_velocities,
+        #                                                blended_head_xzs=blended_head_xzs,
+        #                                                blended_base_positions=blended_base_positions,
+        #                                                blended_facing_dirs=blended_facing_dirs,
+        #                                                blended_base_velocities=blended_base_velocities)
 
-        if plot_blending_coefficients:
+        # if plot_blending_coefficients:
 
-            # Plot the blending coefficients
-            generator.plotter.plot_blending_coefficients(figure_blending_coefficients=figure_blending_coefficients,
-                                                         blending_coeffs=generator.storage.blending_coeffs)
+        #     # Plot the blending coefficients
+        #     generator.plotter.plot_blending_coefficients(figure_blending_coefficients=figure_blending_coefficients,
+        #                                                  blending_coeffs=generator.storage.blending_coeffs)
 
-        if plot_trajectory_blending or plot_footsteps or plot_blending_coefficients:
+        # if plot_trajectory_blending or plot_footsteps or plot_blending_coefficients:
 
-            # Plot
-            plt.show()
-            plt.pause(0.0001)
+        #     # Plot
+        #     plt.show()
+        #     plt.pause(0.0001)
 
-        else:
+        # else:
 
-            # Slow down visualization
-            time.sleep(0.01)
+        # Slow down visualization
+        time.sleep(0.01)
