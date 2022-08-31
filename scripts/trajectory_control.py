@@ -93,6 +93,13 @@ controller.compute_dcm_trajectory()
 # ==================
 # TRAJECTORY CONTROL
 # ==================
+# Assign start and stop for average calculation
+start_pt = 1000
+stop_pt = 3000
+
+print(controller.get_trajectory_duration()*controller.get_dt())
+head_xs = np.empty(0)
+head_zs = np.empty(0)
 
 # Trajectory control loop running at dt = 100 Hz
 for idx in np.arange(start=0, stop=controller.get_trajectory_duration(), step=controller.get_dt()):
@@ -119,7 +126,22 @@ for idx in np.arange(start=0, stop=controller.get_trajectory_duration(), step=co
     controller.set_current_joint_reference(idx)
 
     # Update the storage of the quantities of interest
-    controller.update_storage(idx)
+    head_pos = controller.update_storage(idx)
+
+    head_xs = np.append(head_xs,head_pos[0])
+    head_zs = np.append(head_zs,head_pos[1])
+
+    print(int(idx))
+
+# Get average over 1000 data points
+print(len(head_xs[start_pt:stop_pt]))
+print(head_xs)
+print('head x mean: ', np.mean(head_xs[start_pt:stop_pt]))
+
+# Get average over 1000 data points
+print(len(head_zs[start_pt:stop_pt]))
+print(head_zs)
+print('head z mean: ', np.mean(head_zs[start_pt:stop_pt]))
 
 # At the end of the control loop, store the relevant data
 controller.storage.save_data_as_json()

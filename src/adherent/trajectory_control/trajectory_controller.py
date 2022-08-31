@@ -1635,7 +1635,7 @@ class TrajectoryController:
     # STORAGE
     # =======
 
-    def update_storage(self, idx) -> None:
+    def update_storage(self, idx) -> List:
         """Update the storage of the quantities of interest."""
 
         # Update joints storage
@@ -1682,6 +1682,23 @@ class TrajectoryController:
                                               left_foot_meas_transform=self.kindyn_meas_desc.kindyn.get_world_transform("l_sole"),
                                               left_foot_des_transform=self.kindyn_des_desc.kindyn.get_world_transform("l_sole"),
                                               left_wrench=self.left_wrench)
+
+        W_H_head = self.kindyn_meas_desc.kindyn.get_world_transform("head")
+        # base_H_head = np.linalg.inv(world_H_base).dot(W_H_head)
+        #self.kindyn_meas_desc.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
+        world_H_base=self.legged_odometry.world_H_base.tolist()
+
+        # W_H_head = world_H_base.dot(base_H_head)
+        head_z = W_H_head[2, -1]
+
+        #Compute head x in local base frame
+        T_world_to_base = np.linalg.inv(world_H_base)
+        current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
+        head_x = current_local_head_pos[0]
+
+        head_pos = [head_x, head_z]
+
+        return head_pos
 
     # =======
     # GETTERS
