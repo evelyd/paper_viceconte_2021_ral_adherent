@@ -1459,7 +1459,7 @@ class TrajectoryController:
         self.whole_body_qp_control.configure_left_foot_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
 
         # Configure chest task
-        self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
+        # self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
 
         # Configure joint tracking task
         self.whole_body_qp_control.configure_joint_tracking_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
@@ -1469,7 +1469,7 @@ class TrajectoryController:
 
         # Set fixed set points for the joint tracking task (initial pose) and the chest task (straight chest)
         self.whole_body_qp_control.set_joint_tracking_set_point(joint_reference=self.initial_joint_reference)
-        self.whole_body_qp_control.set_chest_set_point(chest_quat_reference=[0.5, 0.5, 0.5, 0.5])
+        # self.whole_body_qp_control.set_chest_set_point(chest_quat_reference=[0.5, 0.5, 0.5, 0.5])
 
     def configure_legged_odom(self) -> None:
         """Setup the legged odometry estimator."""
