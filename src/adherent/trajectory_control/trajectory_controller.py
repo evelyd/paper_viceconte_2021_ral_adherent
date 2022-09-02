@@ -1191,11 +1191,12 @@ class WholeBodyQPControl:
         chest_so3_param_handler.set_parameter_float(name="kp_angular", value=kp)
         assert self.chest_so3_task.set_kin_dyn(kindyn)
         assert self.chest_so3_task.initialize(param_handler=chest_so3_param_handler)
-        chest_so3_var_handler = blf.system.VariablesHandler()
-        assert chest_so3_var_handler.add_variable("robotVelocity", len(joints_list) + 6) is True
-        assert self.chest_so3_task.set_variables_handler(variables_handler=chest_so3_var_handler)
 
         if is_new:
+            chest_so3_var_handler = blf.system.VariablesHandler()
+            assert chest_so3_var_handler.add_variable("robotVelocity", len(joints_list) + 6) is True
+            assert self.chest_so3_task.set_variables_handler(variables_handler=chest_so3_var_handler)
+        
             # Add chest SO3 task as soft constraint, leaving the yaw free
             assert self.qp_ik.add_task(task=self.chest_so3_task, taskName="chest_so3_task", priority=1, weight=[kp, kp, 0])
 
