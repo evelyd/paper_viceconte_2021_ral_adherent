@@ -687,6 +687,56 @@ class FootstepsExtractor:
         phase_list.set_lists(contact_lists=contact_list_map)
         self.contact_phase_list = phase_list
 
+@dataclass
+class JoystickExtractor:
+    """Class to extract the joystick inputs for crouching at the desired frequency from the generated trajectory."""
+
+    # Path for the generated footsteps
+    joystick_path: str
+
+    # Time scaling factor
+    time_scaling: int
+
+    # Crouching references
+    crouching_references: List = field(default_factory=list)
+
+    @staticmethod
+    def build(joystick_path: str,
+              time_scaling: int) -> "JoystickExtractor":
+        """Build an instance of JoystickExtractor."""
+
+        return JoystickExtractor(joystick_path=joystick_path,
+                                 time_scaling=time_scaling)
+
+    def retrieve_joystick_inputs(self) -> None:
+        """Retrieve joystick inputs at the desired frequency from the generated trajectory."""
+
+        # Retrieve original joint posturals from a JSON file
+        with open(self.joystick_path, 'r') as openfile:
+            joystick_inputs = json.load(openfile)
+        crouching_inputs = joystick_inputs["head_xzs"]
+
+        # Initialize list for the joystick references at the desired frequency
+        crouching_references = []
+
+        # Replicate the postural from adherent (frequency: 50 Hz) as many times as you need
+        for crouching_input in crouching_inputs:
+
+            # 2 is to go from 50Hz (trajectory generation frequency) to 100Hz (trajectory control frequency),
+            # then you need to take into account the time_scaling factor
+            for i in range(2 * self.time_scaling):
+
+                if crouching_input[0][0] < 0.0:
+                    # Crouching is true of the input is less than 0
+                    crouching_reference = True
+                    crouching_references.append(crouching_reference)
+                else:
+                    # Crouching is false of the input is 0
+                    crouching_reference = False
+                    crouching_references.append(crouching_reference)
+
+        # Assign joint references
+        self.crouching_references = crouching_references
 
 @dataclass
 class PosturalExtractor:
@@ -1131,22 +1181,23 @@ class WholeBodyQPControl:
         # Add left foot SE3 task as hard constraint
         assert self.qp_ik.add_task(task=self.lf_se3_task, taskName="lf_se3_task", priority=0)
 
-    def configure_chest_task(self, kindyn: blf.floating_base_estimators.KinDynComputations, joints_list: List) -> None:
+    def configure_chest_task(self, kindyn: blf.floating_base_estimators.KinDynComputations, joints_list: List, kp: float , is_new: bool) -> None:
         """Configure chest SO3 task and add it as soft constraint."""
 
         # Configure chest SO3 task
         chest_so3_param_handler = blf.parameters_handler.StdParametersHandler()
         chest_so3_param_handler.set_parameter_string(name="robot_velocity_variable_name", value="robotVelocity")
         chest_so3_param_handler.set_parameter_string(name="frame_name", value="chest")
-        chest_so3_param_handler.set_parameter_float(name="kp_angular", value=10.0)
+        chest_so3_param_handler.set_parameter_float(name="kp_angular", value=kp)
         assert self.chest_so3_task.set_kin_dyn(kindyn)
         assert self.chest_so3_task.initialize(param_handler=chest_so3_param_handler)
         chest_so3_var_handler = blf.system.VariablesHandler()
         assert chest_so3_var_handler.add_variable("robotVelocity", len(joints_list) + 6) is True
         assert self.chest_so3_task.set_variables_handler(variables_handler=chest_so3_var_handler)
 
-        # Add chest SO3 task as soft constraint, leaving the yaw free
-        assert self.qp_ik.add_task(task=self.chest_so3_task, taskName="chest_so3_task", priority=1, weight=[10, 10, 0])
+        if is_new:
+            # Add chest SO3 task as soft constraint, leaving the yaw free
+            assert self.qp_ik.add_task(task=self.chest_so3_task, taskName="chest_so3_task", priority=1, weight=[kp, kp, 0])
 
     def configure_joint_tracking_task(self, kindyn: blf.floating_base_estimators.KinDynComputations, joints_list: List) -> None:
         """Configure joint tracking task and add it as soft constraint."""
@@ -1238,6 +1289,7 @@ class TrajectoryController:
     # Components of the trajectory controller
     storage: StorageHandler
     footsteps_extractor: FootstepsExtractor
+    joystick_extractor: JoystickExtractor
     postural_extractor: PosturalExtractor
     legged_odometry: LeggedOdometry
     trajectory_optimization: TrajectoryOptimization
@@ -1282,7 +1334,7 @@ class TrajectoryController:
     dcm_pos_meas: np.array = field(default_factory=lambda: np.array([]))
 
     @staticmethod
-    def build(robot_urdf: str, footsteps_path: str, posturals_path: str, storage_path: str, time_scaling: int,
+    def build(robot_urdf: str, footsteps_path: str, joystick_path: str, posturals_path: str, storage_path: str, time_scaling: int,
               footstep_scaling: float, use_joint_references: bool, controlled_joints: List, foot_name_to_index: Dict,
               initial_joint_reference: List, shoulder_offset: float = 0.15) -> "TrajectoryController":
         """Build an instance of TrajectoryController."""
@@ -1300,6 +1352,11 @@ class TrajectoryController:
                                                        footstep_scaling=footstep_scaling,
                                                        time_scaling=time_scaling)
         footsteps_extractor.retrieve_contacts()
+
+        # Joystick input extractor
+        joystick_extractor = JoystickExtractor.build(joystick_path=joystick_path,
+                                                     time_scaling=time_scaling)
+        joystick_extractor.retrieve_joystick_inputs()
 
         # Postural extractor
         postural_extractor = PosturalExtractor.build(posturals_path=posturals_path,
@@ -1322,6 +1379,7 @@ class TrajectoryController:
                                     initial_joint_reference=initial_joint_reference,
                                     storage=storage,
                                     footsteps_extractor=footsteps_extractor,
+                                    joystick_extractor=joystick_extractor,
                                     postural_extractor=postural_extractor,
                                     legged_odometry=legged_odometry,
                                     trajectory_optimization=trajectory_optimization,
@@ -1459,7 +1517,7 @@ class TrajectoryController:
         self.whole_body_qp_control.configure_left_foot_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
 
         # Configure chest task
-        # self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
+        self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list, kp=10.0, is_new=True)
 
         # Configure joint tracking task
         self.whole_body_qp_control.configure_joint_tracking_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list)
@@ -1469,7 +1527,7 @@ class TrajectoryController:
 
         # Set fixed set points for the joint tracking task (initial pose) and the chest task (straight chest)
         self.whole_body_qp_control.set_joint_tracking_set_point(joint_reference=self.initial_joint_reference)
-        # self.whole_body_qp_control.set_chest_set_point(chest_quat_reference=[0.5, 0.5, 0.5, 0.5])
+        self.whole_body_qp_control.set_chest_set_point(chest_quat_reference=[0.5, 0.5, 0.5, 0.5])
 
     def configure_legged_odom(self) -> None:
         """Setup the legged odometry estimator."""
@@ -1600,6 +1658,15 @@ class TrajectoryController:
             # Update set point for the joint tracking task
             self.whole_body_qp_control.set_joint_tracking_set_point(
                 joint_reference=self.postural_extractor.joint_references[round(idx * 1/self.dt)])
+
+        crouching_reference = self.joystick_extractor.crouching_references[round(idx * 1/self.dt)]
+
+        if crouching_reference:
+            # Remove chest SO3 task by setting weight to 0
+            self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list, kp=0.0, is_new=False)
+        else:
+            # Re-enable chest SO3 task by setting weight to 10
+            self.whole_body_qp_control.configure_chest_task(kindyn=self.kindyn_des_desc.kindyn, joints_list=self.joints_list, kp=10.0, is_new=False)
 
     def retrieve_joint_reference(self) -> None:
         """Retrive desired joint velocities and integrate them in order to obtain desired joint positions."""
