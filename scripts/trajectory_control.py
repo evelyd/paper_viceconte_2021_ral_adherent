@@ -50,6 +50,7 @@ robot_urdf = "/iit/sources/robotology-superbuild/src/icub-models/iCub/robots/iCu
 # Define the paths for the generated footsteps and postural
 trajectory_path = os.path.join(script_directory, trajectory_path)
 footsteps_path = trajectory_path + "footsteps.txt"
+joystick_path = trajectory_path + "joystick_input.txt"
 posturals_path = trajectory_path + "postural.txt"
 
 # Define the beginning of the path where the trajectory control data will be stored
@@ -71,6 +72,7 @@ initial_joint_reference = compute_initial_joint_reference(robot="iCubV2_5")
 # Instantiate the trajectory controller
 controller = trajectory_controller.TrajectoryController.build(robot_urdf=robot_urdf,
                                                               footsteps_path=footsteps_path,
+                                                              joystick_path=joystick_path,
                                                               posturals_path=posturals_path,
                                                               storage_path = storage_path,
                                                               time_scaling=time_scaling,
