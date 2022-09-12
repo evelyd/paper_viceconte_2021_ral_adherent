@@ -380,15 +380,15 @@ def define_initial_base_height(robot: str) -> List:
 
     return initial_base_height
 
-def define_reference_head_xz(robot: str) -> List:
+def define_reference_head_x(robot: str) -> List:
     """Define the robot-specific initial head x,z of the base frame."""
 
     if robot != "iCubV2_5":
         raise Exception("Reference head x,z (standing) only defined for iCubV2_5.")
 
-    reference_head_xz = np.array([-0.06451682, 0.86823943]) #this is a value measured in standing position
+    reference_head_x = -0.06451682 #this is a value measured in standing position
 
-    return reference_head_xz
+    return reference_head_x
 
 def define_initial_base_yaw(robot: str) -> List:
     """Define the robot-specific initial base yaw expressed in the world frame."""
