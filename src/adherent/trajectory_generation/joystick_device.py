@@ -393,27 +393,27 @@ class JoystickDataProcessor:
 
         if self.curr_crouch_status: #crouching is turned on
             #numbers here are raw values, need to subtract them from the standing upright position
-            # # Standing
-            # if self.curr_x == 0.0 and self.curr_y == 0.0: #measured from D5 12 np.r_[0:500]
-            #     crouching_val = np.array([-0.04465605440816225,0.8595681747933256])-np.array([-0.13941656219380097,0.6278804477228214]) #measured from D4 12 np.r_[13800:13900]
-            #     print("standing: ", crouching_val)
+            # Standing
+            if self.curr_x == 0.0 and self.curr_y == 0.0: #measured from D5 12 np.r_[0:500]
+                crouching_val = -0.04465605440816225 + 0.13941656219380097 #measured from D4 12 np.r_[13800:13900]
+                print("standing: ", crouching_val)
 
-            # # Backward walking
-            # elif self.curr_y > 0.2: #measured from D2 2 np.r_[1000:30000]
-            #     crouching_val = np.array([-0.06646553743328709,0.8624781246729525])-np.array([-0.13275099308754346,0.7180171173654532]) #measured from D4 13 np.r_[4500:5500,23500:24500,15500:16500]
-            #     print("backward: ", crouching_val)
+            # Backward walking
+            elif self.curr_y > 0.2: #measured from D2 2 np.r_[1000:30000]
+                crouching_val = -0.06646553743328709 + 0.13275099308754346 #measured from D4 13 np.r_[4500:5500,23500:24500,15500:16500]
+                print("backward: ", crouching_val)
 
-            # # Side walking
-            # elif self.curr_y < 0.2 and np.linalg.norm(self.curr_x) > 0.2: #measured from D2 3 np.r_[1000:30000]
-            #     crouching_val = np.array([-0.07170618742416336,0.8595746156309951])-np.array([-0.1106156635505082,0.7575509107320617]) #measured from D4 14 np.r_[7000:9000,18500:19500]
-            #     print("sideways:", crouching_val)
+            # Side walking
+            elif self.curr_y < 0.2 and np.linalg.norm(self.curr_x) > 0.2: #measured from D2 3 np.r_[1000:30000]
+                crouching_val = -0.07170618742416336 + 0.1106156635505082 #measured from D4 14 np.r_[7000:9000,18500:19500]
+                print("sideways:", crouching_val)
 
-            # # Forward walking
-            # else: #measured from D2 1 np.r_[500:25000]
-            #     crouching_val = np.array([-0.06721226995270507,0.859843611108426])-np.array([-0.14785859823127023,0.6577967679775613]) #measured from D4 12 np.r_[8000:9000,11000:12000,14500:15500]
-            #     print("forward:", crouching_val)
+            # Forward walking
+            else: #measured from D2 1 np.r_[500:25000]
+                crouching_val = -0.06721226995270507 + 0.14785859823127023 #measured from D4 12 np.r_[8000:9000,11000:12000,14500:15500]
+                print("forward:", crouching_val)
 
-            crouching_val=0.11671078
+            # crouching_val=0.11671078
 
             head_x_val = upright_walking_head_x - crouching_val #np.array([0.11671078, 0.15290253]) #numbers are averages calculated from crouching dataset
 
