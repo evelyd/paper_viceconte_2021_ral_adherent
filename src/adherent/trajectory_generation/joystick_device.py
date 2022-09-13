@@ -368,29 +368,29 @@ class JoystickDataProcessor:
 
     def process_joystick_inputs(self) -> (list, list, list, list):
         """Process the joystick inputs in order to retrieve the desired future ground trajectory specified by:
-           - a line of future head x,z (head_xzs)
+           - a line of future head x (head_xs)
            - a quadratic Bezier curve of future base positions (quad_bezier)
            - a series of desired base velocities associated to the base positions in the Bezier curve (base_velocities)
            - a series of desired facing directions associated to the base positions in the Bezier curve (facing_dirs)
         """
 
-        head_xzs = self.compute_head_xzs()
+        head_xs = self.compute_head_xs()
         quad_bezier = self.compute_quadratic_bezier()
         base_velocities = self.compute_base_velocities(quad_bezier)
         facing_dirs = self.compute_facing_directions(quad_bezier)
 
-        return head_xzs, quad_bezier, base_velocities, facing_dirs
+        return head_xs, quad_bezier, base_velocities, facing_dirs
 
-    def compute_head_xzs(self) -> List:
-        """Compute a linear array (vs. time) of future head x,z based on the desired crouch status. The array will contain fixed
-        interval changes in head x,z, moving toward the average upright walking head x,z if the crouch status is False and toward a constant 
-        lower reference head x,z if the crouch status is True.
+    def compute_head_xs(self) -> List:
+        """Compute a linear array (vs. time) of future head x based on the desired crouch status. The array will contain fixed
+        interval changes in head x moving toward the average upright walking head x,z if the crouch status is False and toward a constant 
+        lower reference head x if the crouch status is True.
         """
-        upright_walking_head_xz = np.array([0.0, 0.0]) #this is nominal, measure from avg upright walking head x,z, average local head x position
+        upright_walking_head_x = 0.0 #this is nominal, measure from avg upright walking head x, average local head x position
 
-        head_xz = []
-        crouching_val = np.array([0.0,0.0])
-        print(self.curr_x, self.curr_y)
+        head_x = []
+        crouching_val = 0.0
+
         if self.curr_crouch_status: #crouching is turned on
             #numbers here are raw values, need to subtract them from the standing upright position
             # # Standing
@@ -413,19 +413,18 @@ class JoystickDataProcessor:
             #     crouching_val = np.array([-0.06721226995270507,0.859843611108426])-np.array([-0.14785859823127023,0.6577967679775613]) #measured from D4 12 np.r_[8000:9000,11000:12000,14500:15500]
             #     print("forward:", crouching_val)
 
-            crouching_val=np.array([0.11671078, 0.15290253])
+            crouching_val=0.11671078
 
-            head_xz_val = upright_walking_head_xz - crouching_val #np.array([0.11671078, 0.15290253]) #numbers are averages calculated from crouching dataset
+            head_x_val = upright_walking_head_x - crouching_val #np.array([0.11671078, 0.15290253]) #numbers are averages calculated from crouching dataset
 
         else: #crouching is turned off
-            head_xz_val = upright_walking_head_xz #same as upright position
+            head_x_val = upright_walking_head_x #same as upright position
 
-        # Compute the array of future head x,z, all of which are the same value depending on whether crouching is enabled or not
-        # head_x = (head_xz*np.ones(self.t.size)).tolist()
+        # Compute the array of future head x, all of which are the same value depending on whether crouching is enabled or not
         for i in range(self.t.size):
-            head_xz.append(head_xz_val)
+            head_x.append(head_x_val)
             
-        return head_xz
+        return head_x
 
     def compute_quadratic_bezier(self) -> List:
         """Compute a quadratic Bezier curve of future base positions from the joystick inputs. The last point of such
@@ -517,23 +516,25 @@ class JoystickDataProcessor:
 
     def send_data(self,
                   output_port: yarp.BufferedPortBottle,
-                  head_xz: List,
+                  head_x: List,
                   quad_bezier: List,
                   base_velocities: List,
                   facing_dirs: List,
                   joystick_inputs: List) -> None:
         """Send raw and processed joystick data through YARP."""
-        # The joystick input from the user written on the YARP port will contain 4 * 7 * 2 + 4 = 60 values:
-        # 0-13 are head_xz (x,z)
-        # 14-27 are quad_bezier (x,y)
-        # 28-41 are base_velocities (x,y)
-        # 42-55 are facing_dirs (x,y)
-        # 56-59 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
+        # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
+        # 0-6 are head_x
+        # 7-20 are quad_bezier (x,y)
+        # 21-34 are base_velocities (x,y)
+        # 35-48 are facing_dirs (x,y)
+        # 49-52 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
 
         # Add data to be sent through the YARP port
         bottle = output_port.prepare()
         bottle.clear()
-        for data in [head_xz, quad_bezier, base_velocities, facing_dirs]:
+        for data in head_x:
+            bottle.addFloat32(data)
+        for data in [quad_bezier, base_velocities, facing_dirs]:
             for elem in data:
                 for coord in elem:
                     bottle.addFloat32(coord)
@@ -543,20 +544,19 @@ class JoystickDataProcessor:
         # Send data through the YARP port
         output_port.write()
 
-    def plot_head_xz(self, head_xz: list) -> None:
-        """Visualize the desired head x,z (i.e. crouch status) over time."""
+    def plot_head_x(self, head_x: list) -> None:
+        """Visualize the desired head x (i.e. crouch status) over time."""
 
         plt.figure(1)
         plt.clf()
 
         # Plot configuration
-        desired_head_xz = plt.plot(self.t,head_xz, '-o', label='Head x (local base frame)')
-        # plt.plot(self.t,head_xz[1], '-o', label='Head z')
+        desired_head_x = plt.plot(self.t,head_x, '-o', label='Head x (local base frame)')
         plt.grid()
         plt.xlabel("time (s)")
         plt.ylabel("head position (m)")
-        plt.legend(['Head x', 'Head z'], loc="upper right")
-        plt.title('DESIRED RELATIVE HEAD X (LOCAL BASE FRAME) AND Z (GLOBAL FRAME)')
+        plt.legend('Head x', loc="upper right")
+        plt.title('DESIRED RELATIVE HEAD X (LOCAL BASE FRAME)')
 
     def plot_motion_direction(self) -> None:
         """Visualize the current motion direction."""
