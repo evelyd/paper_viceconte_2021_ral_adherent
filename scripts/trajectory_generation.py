@@ -35,9 +35,9 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--storage_path", help="Path where the generated trajectory will be stored. Relative path from script folder.",
-                    type=str, default="../datasets/inference/")
+                    type=str, default="../datasets_crouching/inference/")
 parser.add_argument("--training_path", help="Path where the training-related data are stored. Relative path from script folder.",
-                    type=str, default="../datasets/training_D2_D3_subsampled_mirrored_4ew_98%/")
+                    type=str, default="../datasets_crouching/training_D2_D3_subsampled_mirrored_4ew_98%/")
 parser.add_argument("--save_every_N_iterations", help="Data will be saved every N iterations.",
                     type=int, default=1000)
 parser.add_argument("--plot_trajectory_blending", help="Visualize the blending of the future ground trajectory to build the next network input.", action="store_true")
@@ -70,7 +70,7 @@ yarp.Network.connect("/joystick_out", p_in.getName())
 
 # Initialization of the joystick raw and processed inputs received through YARP ports
 raw_data = [] # motion and facing directions
-head_xzs = []
+head_xs = []
 quad_bezier = []
 base_velocities = []
 facing_dirs = []
@@ -107,7 +107,7 @@ kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravi
 # ==================
 
 # Define the indexes of the figures for plotting
-figure_head_xzs = 1
+figure_head_xs = 1
 figure_facing_dirs = 2
 figure_base_vel = 3
 figure_blending_coefficients = 4
@@ -129,7 +129,7 @@ local_foot_vertices_pos = define_foot_vertices(robot="iCubV2_5")
 initial_nn_X = define_initial_nn_X(robot="iCubV2_5")
 
 # Define robot-specific initial past trajectory features
-initial_past_trajectory_head_xzs, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel = \
+initial_past_trajectory_head_xs, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel = \
     define_initial_past_trajectory(robot="iCubV2_5")
 
 # Define robot-specific initial base yaw angle
@@ -148,7 +148,7 @@ generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gaz
                                                            training_path=os.path.join(script_directory, training_path),
                                                            local_foot_vertices_pos=local_foot_vertices_pos,
                                                            initial_nn_X=initial_nn_X,
-                                                           initial_past_trajectory_head_xzs=initial_past_trajectory_head_xzs,
+                                                           initial_past_trajectory_head_xs=initial_past_trajectory_head_xs,
                                                            initial_past_trajectory_base_pos=initial_past_trajectory_base_pos,
                                                            initial_past_trajectory_facing_dirs=initial_past_trajectory_facing_dirs,
                                                            initial_past_trajectory_base_vel=initial_past_trajectory_base_vel,
@@ -200,19 +200,19 @@ with tf.Session(config=config) as sess:
                                                                               link_names=icub.link_names())
 
         # Retrieve user input data from YARP port
-        head_xzs, quad_bezier, base_velocities, facing_dirs, raw_data = \
+        head_xs, quad_bezier, base_velocities, facing_dirs, raw_data = \
             generator.retrieve_joystick_inputs(input_port=p_in,
-                                               head_xzs=head_xzs,
+                                               head_xs=head_xs,
                                                quad_bezier=quad_bezier,
                                                base_velocities=base_velocities,
                                                facing_dirs=facing_dirs,
                                                raw_data=raw_data)
 
         # Use in an autoregressive fashion the network output and blend it with the user input
-        blended_head_xzs, blended_base_positions, blended_facing_dirs, blended_base_velocities = \
+        blended_head_xs, blended_base_positions, blended_facing_dirs, blended_base_velocities = \
             generator.autoregression_and_blending(current_output=current_output,
                                                   denormalized_current_output=denormalized_current_output,
-                                                  head_xzs=head_xzs,
+                                                  head_xs=head_xs,
                                                   quad_bezier=quad_bezier,
                                                   facing_dirs=facing_dirs,
                                                   base_velocities=base_velocities)
@@ -224,7 +224,7 @@ with tf.Session(config=config) as sess:
                                            links_postural=new_links_postural,
                                            com_postural=new_com_postural,
                                            raw_data=raw_data,
-                                           head_xzs=head_xzs,
+                                           head_xs=head_xs,
                                            quad_bezier=quad_bezier,
                                            base_velocities=base_velocities,
                                            facing_dirs=facing_dirs,
@@ -232,14 +232,14 @@ with tf.Session(config=config) as sess:
 
         if plot_trajectory_blending:
             # Plot the trajectory blending
-            generator.plotter.plot_trajectory_blending(figure_head_xzs=figure_head_xzs,
+            generator.plotter.plot_trajectory_blending(figure_head_xs=figure_head_xs,
                                                        figure_facing_dirs=figure_facing_dirs,
                                                        figure_base_vel=figure_base_vel,
                                                        denormalized_current_output=denormalized_current_output,
-                                                       head_xzs=head_xzs,
+                                                       head_xs=head_xs,
                                                        quad_bezier=quad_bezier, facing_dirs=facing_dirs,
                                                        base_velocities=base_velocities,
-                                                       blended_head_xzs=blended_head_xzs,
+                                                       blended_head_xs=blended_head_xs,
                                                        blended_base_positions=blended_base_positions,
                                                        blended_facing_dirs=blended_facing_dirs,
                                                        blended_base_velocities=blended_base_velocities)
