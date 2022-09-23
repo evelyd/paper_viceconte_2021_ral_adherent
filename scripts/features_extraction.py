@@ -30,6 +30,7 @@ parser.add_argument("--mirrored", help="Visualize the mirrored version of the se
 # Plot configuration
 parser.add_argument("--plot_global", help="Visualize the computed global features.",action="store_true")
 parser.add_argument("--plot_local", help="Visualization the computed local features.",action="store_true")
+parser.add_argument("--plot_candidate_features", help="Visualize the candidate features over the whole dataset.",action="store_true")
 
 # Store configuration
 parser.add_argument("--save", help="Store the network input and output vectors in json format.",action="store_true")
@@ -41,6 +42,7 @@ retargeted_mocap_index = args.portion
 mirrored = args.mirrored
 plot_global = args.plot_global
 plot_local = args.plot_local
+plot_candidate_features = args.plot_candidate_features
 store_as_json = args.save
 
 # ====================
@@ -58,11 +60,9 @@ elif dataset == "D3":
     limits = {6: [1500, 28500], 7: [1750, 34000], 8: [2900, 36450], 9: [1250, 17050], 10: [1450, 78420], 11: [1600, 61350]}
 elif dataset == "D4":
     retargeted_mocaps = {12:"12_forward_crouching_normal_step",13:"13_backward_crouching_normal_step",
-                             14:"14_backward_crouching_normal_step",15:"15_left_crouching_normal_step",
-                             16:"16_right_crouching_normal_step",17:"17_diagonal_crouching_normal_step",
-                             18:"18_mixed_crouching_normal_step",19:"19_mixed_crouching_normal_step"}
-    limits = {12: [1500, 29050], 13: [750, -340], 14: [580, -350], 15: [650, -175], 16: [650, -400], 17: [700, -450], 
-              18: [600, -15000], 19: [975, -250]}
+                             14:"14_left_and_right_crouching_normal_step",15:"15_diagonal_crouching_normal_step",
+                             16:"16_mixed_crouching_normal_step"}
+    limits = {12: [500, -500], 13: [300, -625], 14: [600, -250], 15: [400, -300], 16: [400, -300]}
 initial_frame = limits[retargeted_mocap_index][0]
 final_frame = limits[retargeted_mocap_index][1]
 
@@ -169,6 +169,20 @@ if store_as_json:
     print("Output features have been saved in", output_path)
 
 # =======================================================
+# VISUALIZE THE COM POSITION OVER THE WHOLE DATASET
+# =======================================================
+
+if plot_candidate_features:
+
+    input("Press Enter to start the overall visualization of the candidate features")
+    utils.visualize_candidate_features(ik_solutions=ik_solutions,
+                                  icub=icub,
+                                  kindyn=kindyn,
+                                  world=world,
+                                  controlled_joints=controlled_joints,
+                                  gazebo=gazebo)
+
+# =======================================================
 # VISUALIZE THE RETARGETED MOTION AND THE GLOBAL FEATURES
 # =======================================================
 
@@ -178,6 +192,8 @@ if plot_global:
     utils.visualize_global_features(global_window_features=extractor.get_global_window_features(),
                                     ik_solutions=ik_solutions,
                                     icub=icub,
+                                    kindyn=kindyn,
+                                    world=world,
                                     controlled_joints=controlled_joints,
                                     gazebo=gazebo)
 
