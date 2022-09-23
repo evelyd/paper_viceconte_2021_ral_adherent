@@ -68,11 +68,11 @@ while True:
     if plot_i % plot_rate == 0:
 
         # Process the joystick data
-        head_x, quad_bezier, base_velocities, facing_dirs = joystick.process_joystick_inputs()
+        head_z, quad_bezier, base_velocities, facing_dirs = joystick.process_joystick_inputs()
 
         # Send data to the trajectory generator through the YARP port
         joystick.send_data(output_port=p_out,
-                           head_x=head_x,
+                           head_z=head_z,
                            quad_bezier=quad_bezier,
                            base_velocities=base_velocities,
                            facing_dirs=facing_dirs,
@@ -80,7 +80,7 @@ while True:
 
 
         # Plot the head x (local) over time
-        joystick.plot_head_x(head_x=head_x)
+        joystick.plot_head_z(head_z=head_z)
 
         # Plot the motion direction
         joystick.plot_motion_direction()

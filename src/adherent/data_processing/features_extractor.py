@@ -24,7 +24,7 @@ class GlobalFrameFeatures:
     frontal_chest_dir: List
 
     # Features storage
-    head_xs: List = field(default_factory=list)
+    head_zs: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     ground_base_directions: List = field(default_factory=list)
     ground_chest_directions: List = field(default_factory=list)
@@ -103,10 +103,10 @@ class GlobalFrameFeatures:
             W_H_head = world_H_base.dot(base_H_head)
             T_world_to_base = np.linalg.inv(world_H_base)
             current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
-            head_x = current_local_head_pos[0]
-            # Get nominal head x
-            nom_head_x = head_x - define_reference_head_xz("iCubV2_5")[0]
-            self.head_xs.append(nom_head_x)
+            head_z = W_H_head[2, -1]
+            # Get nominal head z
+            nom_head_z = head_z - define_reference_head_xz("iCubV2_5")[1]
+            self.head_zs.append(nom_head_z)
 
             # Facing direction
             facing_direction = ground_base_direction + ground_chest_direction # mean of ground base and chest directions
@@ -150,7 +150,7 @@ class GlobalWindowFeatures:
     window_indexes: List
 
     # Features storage
-    head_xs: List = field(default_factory=list)
+    head_zs: List = field(default_factory=list)
     desired_velocities: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
@@ -180,7 +180,7 @@ class GlobalWindowFeatures:
 
             # Initialize placeholders for the current window
             future_traj_length = 0
-            current_global_head_xs = []
+            current_global_head_zs = []
             current_global_base_positions = []
             current_global_facing_directions = []
             current_global_base_velocities = []
@@ -188,7 +188,7 @@ class GlobalWindowFeatures:
             for window_index in self.window_indexes:
 
                 # Store the head x base positions, facing directions and base velocities in the current window
-                current_global_head_xs.append(global_frame_features.head_xs[i + window_index])
+                current_global_head_zs.append(global_frame_features.head_zs[i + window_index])
                 current_global_base_positions.append(global_frame_features.base_positions[i + window_index])
                 current_global_facing_directions.append(global_frame_features.facing_directions[i + window_index])
                 current_global_base_velocities.append(global_frame_features.base_velocities[i + window_index])
@@ -202,7 +202,7 @@ class GlobalWindowFeatures:
                     base_position_prev = base_position
 
             # Store global features for the current window
-            self.head_xs.append(current_global_head_xs)
+            self.head_zs.append(current_global_head_zs)
             self.desired_velocities.append(future_traj_length)
             self.base_positions.append(current_global_base_positions)
             self.facing_directions.append(current_global_facing_directions)
@@ -273,7 +273,7 @@ class LocalWindowFeatures:
     window_indexes: List
 
     # Features storage
-    head_xs: List = field(default_factory=list)
+    head_zs: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
     base_velocities: List = field(default_factory=list)
@@ -298,13 +298,13 @@ class LocalWindowFeatures:
         for i in range(len(global_window_features.base_positions)):
 
             # Store the global features associated to the currently-considered window of retargeted frames
-            current_global_head_xs = global_window_features.head_xs[i]
+            current_global_head_zs = global_window_features.head_zs[i]
             current_global_base_positions = global_window_features.base_positions[i]
             current_global_facing_directions = global_window_features.facing_directions[i]
             current_global_base_velocities = global_window_features.base_velocities[i]
 
             # Placeholders for the local features associated to the currently-considered window of retargeted frames
-            current_local_head_xs = []
+            current_local_head_zs = []
             current_local_base_positions = []
             current_local_facing_directions = []
             current_local_base_velocities = []
@@ -333,7 +333,7 @@ class LocalWindowFeatures:
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
-                current_global_head_ht = current_global_head_xs[j]
+                current_global_head_ht = current_global_head_zs[j]
                 current_global_base_pos = current_global_base_positions[j][:2]
                 current_global_facing_dir = current_global_facing_directions[j]
                 current_global_base_vel = current_global_base_velocities[j][0:2]
@@ -344,13 +344,13 @@ class LocalWindowFeatures:
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
                 # Fill the placeholders for the local features associated to the current window
-                current_local_head_xs.append(current_local_head_ht)
+                current_local_head_zs.append(current_local_head_ht)
                 current_local_base_positions.append(current_local_base_pos)
                 current_local_facing_directions.append(current_local_facing_dir)
                 current_local_base_velocities.append(current_local_base_vel)
 
             # Store local features for the current window
-            self.head_xs.append(current_local_head_xs)
+            self.head_zs.append(current_local_head_zs)
             self.base_positions.append(current_local_base_positions)
             self.facing_directions.append(current_local_facing_directions)
             self.base_velocities.append(current_local_base_velocities)
@@ -429,10 +429,10 @@ class FeaturesExtractor:
             X_i = []
 
             # Add current local head x (12 components)
-            current_local_head_xs = []
-            for local_head_x in self.local_window_features.head_xs[i - window_length_frames]:
-                current_local_head_xs.append(local_head_x)
-            X_i.extend(current_local_head_xs)
+            current_local_head_zs = []
+            for local_head_z in self.local_window_features.head_zs[i - window_length_frames]:
+                current_local_head_zs.append(local_head_z)
+            X_i.extend(current_local_head_zs)
 
             # Add current local base positions (24 components)
             current_local_base_positions = []
@@ -491,11 +491,11 @@ class FeaturesExtractor:
             Y_i = []
 
             # Add future local head x (6 components)
-            next_local_head_xs = []
+            next_local_head_zs = []
             for j in range(len(self.local_window_features.base_positions[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
-                    next_local_head_xs.append(self.local_window_features.head_xs[i - window_length_frames + 1][j])
-            Y_i.extend(next_local_head_xs)
+                    next_local_head_zs.append(self.local_window_features.head_zs[i - window_length_frames + 1][j])
+            Y_i.extend(next_local_head_zs)
 
             # Add future local base positions (12 components)
             next_local_base_positions = []
