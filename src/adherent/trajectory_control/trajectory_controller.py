@@ -714,7 +714,7 @@ class JoystickExtractor:
         # Retrieve original joint posturals from a JSON file
         with open(self.joystick_path, 'r') as openfile:
             joystick_inputs = json.load(openfile)
-        crouching_inputs = joystick_inputs["head_xzs"]
+        crouching_inputs = joystick_inputs["head_xs"]
 
         # Initialize list for the joystick references at the desired frequency
         crouching_references = []
@@ -726,7 +726,7 @@ class JoystickExtractor:
             # then you need to take into account the time_scaling factor
             for i in range(2 * self.time_scaling):
 
-                if crouching_input[0][0] < 0.0:
+                if crouching_input[0] < 0.0:
                     # Crouching is true of the input is less than 0
                     crouching_reference = True
                     crouching_references.append(crouching_reference)

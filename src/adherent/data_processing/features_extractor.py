@@ -9,7 +9,7 @@ from gym_ignition.rbd.idyntree import numpy
 from adherent.data_processing import utils
 from gym_ignition.rbd.conversions import Quaternion
 from gym_ignition.rbd.idyntree import kindyncomputations
-from adherent.trajectory_generation.utils import define_reference_head_x
+from adherent.trajectory_generation.utils import define_reference_head_xz
 
 
 @dataclass
@@ -105,7 +105,7 @@ class GlobalFrameFeatures:
             current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
             head_x = current_local_head_pos[0]
             # Get nominal head x
-            nom_head_x = head_x - define_reference_head_x("iCubV2_5")
+            nom_head_x = head_x - define_reference_head_xz("iCubV2_5")[0]
             self.head_xs.append(nom_head_x)
 
             # Facing direction
@@ -428,7 +428,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             X_i = []
 
-            # Add current local head x (24 components)
+            # Add current local head x (12 components)
             current_local_head_xs = []
             for local_head_x in self.local_window_features.head_xs[i - window_length_frames]:
                 current_local_head_xs.append(local_head_x)
@@ -464,7 +464,7 @@ class FeaturesExtractor:
             prev_s_dot = self.global_frame_features.s_dot[i - 2]
             X_i.extend(prev_s_dot)
 
-            # Store current input vector (161 components)
+            # Store current input vector (149 components)
             X.append(X_i)
 
         # Debug
@@ -490,7 +490,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local head x (12 components)
+            # Add future local head x (6 components)
             next_local_head_xs = []
             for j in range(len(self.local_window_features.base_positions[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
@@ -538,7 +538,7 @@ class FeaturesExtractor:
             current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (115 components)
+            # Store current output vector (109 components)
             Y.append(Y_i)
 
         # Debug
