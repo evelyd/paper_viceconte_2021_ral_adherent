@@ -35,9 +35,9 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--storage_path", help="Path where the generated trajectory will be stored. Relative path from script folder.",
-                    type=str, default="../datasets_crouching/inference/")
+                    type=str, default="../datasets/inference/")
 parser.add_argument("--training_path", help="Path where the training-related data are stored. Relative path from script folder.",
-                    type=str, default="../datasets_crouching/training_D2_D3_subsampled_mirrored_4ew_98%/")
+                    type=str, default="../datasets/training_D2_D3_subsampled_mirrored_4ew_98%/")
 parser.add_argument("--save_every_N_iterations", help="Data will be saved every N iterations.",
                     type=int, default=1000)
 parser.add_argument("--plot_trajectory_blending", help="Visualize the blending of the future ground trajectory to build the next network input.", action="store_true")
