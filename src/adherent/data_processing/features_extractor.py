@@ -9,7 +9,7 @@ from gym_ignition.rbd.idyntree import numpy
 from adherent.data_processing import utils
 from gym_ignition.rbd.conversions import Quaternion
 from gym_ignition.rbd.idyntree import kindyncomputations
-from adherent.trajectory_generation.utils import define_reference_head_xz
+from adherent.trajectory_generation.utils import define_reference_head_z
 
 
 @dataclass
@@ -105,7 +105,7 @@ class GlobalFrameFeatures:
             current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
             head_z = W_H_head[2, -1]
             # Get nominal head z
-            nom_head_z = head_z - define_reference_head_xz("iCubV2_5")[1]
+            nom_head_z = head_z - define_reference_head_z("iCubV2_5")
             self.head_zs.append(nom_head_z)
 
             # Facing direction
