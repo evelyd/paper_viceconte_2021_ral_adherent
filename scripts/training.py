@@ -19,7 +19,13 @@ from adherent.MANN import MANN
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--deactivate_mirroring", help="Discard features from mirrored mocap data.", action="store_true")
+parser.add_argument("--epochs", help="Choose a number of epochs to train.", type=int, default=150)
+parser.add_argument("--num_experts", help="Choose a number of experts to train.", type=int, default=4)
+
 args = parser.parse_args()
+
+epochs = args.epochs
+num_experts = args.num_experts
 mirroring = not args.deactivate_mirroring
 
 # =============
@@ -43,13 +49,9 @@ D3_portions = {6: "6_forward_small_step",
                11: "11_mixed_normal_and_small_step"}
 D4_portions = {12:"12_forward_crouching_normal_step",
                13:"13_backward_crouching_normal_step",
-               14:"14_backward_crouching_normal_step",
-               15:"15_left_crouching_normal_step",
-               16:"16_right_crouching_normal_step",
-               17:"17_diagonal_crouching_normal_step",
-               18:"18_mixed_crouching_normal_step",
-               19:"19_mixed_crouching_normal_step"}
-
+               14:"14_left_and_right_crouching_normal_step",
+               15:"15_diagonal_crouching_normal_step", 
+               16:"16_mixed_crouching_normal_step"}
 # Initialize input filenames list
 X = []
 
@@ -110,11 +112,12 @@ else:
 for dataset in datasets:
     savepath+="_"+dataset
 
+savepath += "_" + str(epochs) + "epochs_" + str(num_experts) + "exps"
+
 # Debug
 print("\nSavepath:", savepath, "\n")
 
 # Define training hyperparameters
-num_experts = 4
 rng = np.random.RandomState(23456)
 sess = tf.Session()
 
@@ -134,7 +137,7 @@ mann = MANN.MANN(rng,
                  training_set_percentage=98,
                  hidden_size=512,
                  hidden_size_gt=32,
-                 batch_size = 32, epoch = 150, Te = 10, Tmult = 2,
+                 batch_size = 32, epoch = epochs, Te = 10, Tmult = 2,
                  learning_rate_ini = 0.0001, weightDecay_ini = 0.0025, keep_prob_ini = 0.7)
 
 # Build the network
