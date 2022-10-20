@@ -14,7 +14,6 @@ from gym_ignition.rbd.idyntree import kindyncomputations
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import IKSolution
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import InverseKinematicsNLP
 
-
 @dataclass
 class IKTargets:
     """Class to manipulate the targets for the IK used in the retargeting pipeline."""
@@ -191,29 +190,29 @@ class IKTargets:
 
         self.link_orientation_targets["Head"] = np.array(updated_head_orientations)
 
-    def enforce_wider_legs(self) -> None:
-        """Enforce offsets to the upper leg target orientations so to avoid feet crossing."""
+    def enforce_closer_legs(self) -> None:
+        """Enforce offsets to the upper leg target orientations so to decrease size of steps."""
 
         for link in ["LeftUpperLeg", "RightUpperLeg"]:
 
-            print("Enforcing wider", link)
+            print("Enforcing closer legs", link)
 
             updated_orientations = []
 
             for i in range(len(self.link_orientation_targets[link])):
-
                 # Retrieve original target rpy
                 original_quaternions = self.link_orientation_targets[link][i]
                 original_rotation = Rotation.from_quat(utils.to_xyzw(original_quaternions))
                 original_rpy = original_rotation.as_euler('xyz')
 
+                roll_factor = 0.1
+
                 # Enforce RPY offsets
                 if link == "LeftUpperLeg":
-                    original_rpy += [0.3, 0.1, 0] #[0.3, 0.1, 0] [0.2, 0.2, 0]
-                    # .3, .1 works well for backward step
+                    original_rpy[0] = roll_factor*original_rpy[0]
                 elif link == "RightUpperLeg":
-                    original_rpy -= [0.2, 0, 0] #[0.2, 0, 0] [0.1, 0, 0]
-                    # .2 works well for backward step
+                    original_rpy[0] = roll_factor*original_rpy[0]
+
                 updated_rotation = Rotation.from_euler('xyz', original_rpy)
                 updated_quaternions = Quaternion.to_wxyz(updated_rotation.as_quat())
                 updated_orientations.append(updated_quaternions)
@@ -236,7 +235,7 @@ class WBGR:
               mirroring: bool = False,
               horizontal_feet: bool = False,
               straight_head: bool = False,
-              wider_legs: bool = False,
+              closer_legs: bool = False,
               robot_to_target_base_quat: List = None) -> "WBGR":
         """Build an instance of WBGR."""
 
@@ -255,9 +254,9 @@ class WBGR:
             # Enforce straight head
             ik_targets.enforce_straight_head()
 
-        if wider_legs:
-            # Enforce wider legs
-            ik_targets.enforce_wider_legs()
+        if closer_legs:
+            # Enforce closer legs
+            ik_targets.enforce_closer_legs()
 
         return WBGR(ik_targets=ik_targets, ik=ik, robot_to_target_base_quat=robot_to_target_base_quat)
 
@@ -278,7 +277,6 @@ class WBGR:
         jumped_frames = 0
 
         for i in range(len(self.ik_targets.timestamps)):
-        # for i in range(9000,10000):
 
             print(i, "/", len(self.ik_targets.timestamps))
 
@@ -479,7 +477,7 @@ class KFWBGR(WBGR):
               mirroring: bool = False,
               horizontal_feet: bool = False,
               straight_head: bool = False,
-              wider_legs: bool = False,
+              closer_legs: bool = False,
               robot_to_target_base_quat: List = None,
               kindyn: kindyncomputations.KinDynComputations = None,
               local_foot_vertices_pos: List = None) -> "KFWBGR":
@@ -500,9 +498,9 @@ class KFWBGR(WBGR):
             # Enforce straight head
             ik_targets.enforce_straight_head()
 
-        if wider_legs:
-            # Enforce wider legs
-            ik_targets.enforce_wider_legs()
+        if closer_legs:
+            # Enforce closer legs
+            ik_targets.enforce_closer_legs()
 
         kinematic_computations = KinematicComputations.build(
             kindyn=kindyn, local_foot_vertices_pos=local_foot_vertices_pos)

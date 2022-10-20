@@ -27,7 +27,7 @@ parser.add_argument("--KFWBGR", help="Kinematically feasible Whole-Body Geometri
 parser.add_argument("--save", help="Store the retargeted motion in json format.", action="store_true")
 parser.add_argument("--deactivate_horizontal_feet", help="Deactivate horizontal feet enforcing.", action="store_true")
 parser.add_argument("--deactivate_straight_head", help="Deactivate straight head enforcing.", action="store_true")
-parser.add_argument("--deactivate_wider_legs", help="Deactivate wider legs enforcing.", action="store_true")
+parser.add_argument("--deactivate_closer_legs", help="Deactivate closer legs enforcing.", action="store_true")
 parser.add_argument("--deactivate_visualization", help="Do not visualize the retargeted motion.", action="store_true")
 
 args = parser.parse_args()
@@ -38,7 +38,7 @@ kinematically_feasible_base_retargeting = args.KFWBGR
 store_as_json = args.save
 horizontal_feet = not args.deactivate_horizontal_feet
 straight_head = not args.deactivate_straight_head
-wider_legs = not args.deactivate_wider_legs
+closer_legs = not args.deactivate_closer_legs
 visualize_retargeted_motion = not args.deactivate_visualization
 
 # =====================
@@ -142,7 +142,7 @@ if kinematically_feasible_base_retargeting:
                                                      mirroring=mirroring,
                                                      horizontal_feet=horizontal_feet,
                                                      straight_head=straight_head,
-                                                     wider_legs = wider_legs,
+                                                     closer_legs = closer_legs,
                                                      robot_to_target_base_quat=robot_to_target_base_quat,
                                                      kindyn=kindyn,
                                                      local_foot_vertices_pos=local_foot_vertices_pos)
@@ -153,7 +153,7 @@ else:
                                                    mirroring=mirroring,
                                                    horizontal_feet=horizontal_feet,
                                                    straight_head=straight_head,
-                                                   wider_legs = wider_legs,
+                                                   closer_legs = closer_legs,
                                                    robot_to_target_base_quat=robot_to_target_base_quat)
 
 # Retrieve ik solutions
