@@ -356,10 +356,6 @@ class KinematicComputations:
     local_foot_vertices_pos: List
     support_vertex_prev: int = 0
     support_vertex: int = 0
-    r_height: float = 0.0
-    l_height: float = 0.0
-    r_height_prev: float = 0.0
-    l_height_prev: float = 0.0
     other_vertex: int = 0 # this is the vertex with which we calculate the foot angle
     support_foot_prev: str = "r_foot"
     support_foot: str = "r_foot"
@@ -569,24 +565,7 @@ class KinematicComputations:
 
         # Compute the current support vertex
         vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
-        print("vertex heights: ", vertices_heights)
         self.support_vertex = np.argmin(vertices_heights)
-        self.r_height = np.min(vertices_heights[:4])
-        self.l_height = np.min(vertices_heights[4:])
-        print("R height: ", self.r_height, "and L height: ", self.l_height)
-
-        # Check if threshold is reached in order to decide if SF should switch
-        thresh = 1e-2
-        # If the previous SF was right, and the left foot has a vertex low enough to be within threshold
-        if vertex_indexes_to_names[self.support_vertex][0] == "R" and self.l_height <= self.r_height + thresh:
-            # Make the lowest vertex from the left foot the SV
-            self.support_vertex = 4 + np.argmin(vertices_heights[4:])
-            print("prev SF was R and we switch to L with SV: ", self.support_vertex)
-        # If the previous SF was left, and the right foot has a vertex low enough to be within threshold
-        elif vertex_indexes_to_names[self.support_vertex][0] == "L" and self.r_height <= self.l_height + thresh:
-            # Make the lowest vertex from the right foot the SV
-            self.support_vertex = np.argmin(vertices_heights[:4])
-            print("prev SF was L and we switch to R with SV: ", self.support_vertex)
 
         # Check whether the deactivation time of the last footstep needs to be updated
         update_footstep_deactivation_time = self.footsteps_extractor.should_update_footstep_deactivation_time(kindyn=self.kindyn)
@@ -633,10 +612,6 @@ class KinematicComputations:
 
             # Update support vertex prev
             self.support_vertex_prev = self.support_vertex
-
-        # Update min vertex height for each foot
-        self.r_height_prev = self.r_height
-        self.l_height_prev = self.l_height
 
         # Calculate the transformation from world to support sole
         base_H_support_sole = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name=self.support_sole)
