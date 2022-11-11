@@ -437,7 +437,7 @@ aimed at retargeting data collected using XSens. -->
     <collision>
       <origin xyz="0.03 0.005 0.014" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <box size="0.16 0.072 0.001"/>
+        <box size="0.072 0.1 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -703,7 +703,7 @@ aimed at retargeting data collected using XSens. -->
     <collision>
       <origin xyz="0.03 -0.005 0.014" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <box size="0.16 0.072 0.001"/>
+        <box size="0.072 0.1 0.001"/>
       </geometry>
     </collision>
   </link>
