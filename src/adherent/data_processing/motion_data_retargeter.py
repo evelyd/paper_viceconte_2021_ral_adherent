@@ -13,6 +13,7 @@ from adherent.data_processing import motion_data
 from gym_ignition.rbd.idyntree import kindyncomputations
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import IKSolution
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import InverseKinematicsNLP
+import matplotlib.pyplot as plt
 
 
 @dataclass
@@ -512,6 +513,13 @@ class KFWBGR(WBGR):
             support_foot=support_foot, support_vertex=support_vertex_prev)
         support_vertex_offset = [support_vertex_pos[0], support_vertex_pos[1], 0]
 
+        right_support_positions = np.empty((0,2), float)
+        left_support_positions = np.empty((0,2), float)
+        double_support_positions = np.empty((0,2), float)
+
+        # Define height threshold for ground contact
+        thresh = 1e-3
+
         for ik_solution in ik_solutions[1:]:
 
             # ===========================================
@@ -535,6 +543,15 @@ class KFWBGR(WBGR):
             # Compute the current support vertex as the lowest among the feet vertices
             vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
             support_vertex = np.argmin(vertices_heights)
+
+            #create contact vector, if one foot is support and other is close enough to the ground, assume double support
+            # print("both foot (L,R) min heights: [", np.min(vertices_heights[:4]), ",", np.min(vertices_heights[4:]), "]")
+            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= thresh) or (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= thresh):
+                contact_vector = [1,1]
+            elif vertex_indexes_to_names[support_vertex][0] == "R":
+                contact_vector = [1,0]
+            else:  
+                contact_vector = [0,1]
 
             if support_vertex == support_vertex_prev:
 
@@ -560,6 +577,20 @@ class KFWBGR(WBGR):
 
                 support_vertex_prev = support_vertex
 
+            # For plotting purposes
+            if contact_vector == [1,0]:
+                right_support_positions = np.append(right_support_positions, np.array([[support_vertex_pos[0], support_vertex_pos[1]]]), axis=0)
+            elif contact_vector == [0,1]:
+                left_support_positions = np.append(left_support_positions, np.array([[support_vertex_pos[0], support_vertex_pos[1]]]), axis=0)
+            else:
+                if vertex_indexes_to_names[support_vertex][0] == "L":
+                    swing_vertex = np.argmin(vertices_heights[:4]) #find lowest RF vertex
+                    swing_vertex_pos = W_vertices_positions[swing_vertex]
+                else:
+                    swing_vertex = np.argmin(vertices_heights[4:]) #find lowest LF vertex
+                    swing_vertex_pos = W_vertices_positions[swing_vertex+4]
+                    double_support_positions = np.append(double_support_positions, np.array([[support_vertex_pos[0], support_vertex_pos[1]], [swing_vertex_pos[0], swing_vertex_pos[1]]]), axis=0)
+
             # =======================
             # RECOMPUTE BASE POSITION
             # =======================
@@ -575,5 +606,14 @@ class KFWBGR(WBGR):
             self.kinematic_computations.reset_robot_configuration(joint_positions=joint_positions,
                                                                   base_position=kinematically_feasible_base_position,
                                                                   base_quaternion=base_quaternion)
+
+        plt.scatter(right_support_positions[:,0], right_support_positions[:,1], c="blue", marker = "^", s=50, label="right foot support")
+        plt.scatter(left_support_positions[:,0], left_support_positions[:,1], c="red", marker = "^", s=50, label="left foot support")
+        plt.scatter(double_support_positions[:,0], double_support_positions[:,1], c="purple", s=20, label="double support")
+
+        plt.legend()
+        plt.ion()
+        plt.show()
+        plt.savefig("support_plot.png")
 
         return kinematically_feasible_base_positions

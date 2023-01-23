@@ -51,7 +51,7 @@ store_as_json = args.save
 if dataset == "D2":
     retargeted_mocaps = {1:"1_forward_normal_step",2:"2_backward_normal_step",3:"3_left_and_right_normal_step",
                          4:"4_diagonal_normal_step",5:"5_mixed_normal_step"}
-    limits = {1: [3750, 35750], 2: [1850, 34500], 3: [2400, 36850], 4: [1550, 16000], 5: [2550, 82250]}
+    limits = {1: [3750, 4750], 2: [1850, 34500], 3: [2400, 36850], 4: [1550, 16000], 5: [2550, 82250]} #[3750, 35750]
 elif dataset == "D3":
     retargeted_mocaps = {6:"6_forward_small_step",7:"7_backward_small_step",8:"8_left_and_right_small_step",
                          9:"9_diagonal_small_step",10:"10_mixed_small_step",11:"11_mixed_normal_and_small_step"}
@@ -91,6 +91,9 @@ icub = utils.iCub(world=world, urdf=icub_urdf)
 # Get the controlled joints
 controlled_joints = icub.joint_names()
 
+# Define robot-specific feet vertices positions in the foot frame
+local_foot_vertices_pos = utils.define_foot_vertices(robot="iCubV2_5")
+
 # Show the GUI
 gazebo.gui()
 gazebo.run(paused=True)
@@ -111,7 +114,8 @@ frontal_chest_dir = utils.define_frontal_chest_direction(robot="iCubV2_5")
 extractor = features_extractor.FeaturesExtractor.build(ik_solutions=ik_solutions,
                                                        kindyn=kindyn,
                                                        frontal_base_dir=frontal_base_dir,
-                                                       frontal_chest_dir=frontal_chest_dir)
+                                                       frontal_chest_dir=frontal_chest_dir,
+                                                       local_foot_vertices_pos=local_foot_vertices_pos)
 # Extract the features
 extractor.compute_features()
 

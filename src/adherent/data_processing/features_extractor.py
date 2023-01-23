@@ -21,8 +21,10 @@ class GlobalFrameFeatures:
     kindyn: kindyncomputations.KinDynComputations
     frontal_base_dir: List
     frontal_chest_dir: List
+    local_foot_vertices_pos: List
 
     # Features storage
+    contact_vectors: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     ground_base_directions: List = field(default_factory=list)
     ground_chest_directions: List = field(default_factory=list)
@@ -37,14 +39,16 @@ class GlobalFrameFeatures:
               dt_mean: float,
               kindyn: kindyncomputations.KinDynComputations,
               frontal_base_dir: List,
-              frontal_chest_dir: List) -> "GlobalFrameFeatures":
+              frontal_chest_dir: List,
+              local_foot_vertices_pos: List) -> "GlobalFrameFeatures":
         """Build an empty GlobalFrameFeatures."""
 
         return GlobalFrameFeatures(ik_solutions=ik_solutions,
                                    dt_mean=dt_mean,
                                    kindyn=kindyn,
                                    frontal_base_dir=frontal_base_dir,
-                                   frontal_chest_dir=frontal_chest_dir)
+                                   frontal_chest_dir=frontal_chest_dir,
+                                   local_foot_vertices_pos=local_foot_vertices_pos)
 
     def reset_robot_configuration(self, joint_positions: List, base_position: List, base_quaternion: List) -> None:
         """Reset the robot configuration."""
@@ -55,11 +59,67 @@ class GlobalFrameFeatures:
 
         self.kindyn.set_robot_state(s=joint_positions, ds=np.zeros(len(joint_positions)), world_H_base=world_H_base)
 
+    def compute_W_vertices_pos(self, world_H_base) -> List:
+        """Compute the feet vertices positions in the world (W) frame."""
+
+        # Retrieve front-left (FL), front-right (FR), back-left (BL) and back-right (BR) vertices in the foot frame
+        FL_vertex_pos = self.local_foot_vertices_pos[0]
+        FR_vertex_pos = self.local_foot_vertices_pos[1]
+        BL_vertex_pos = self.local_foot_vertices_pos[2]
+        BR_vertex_pos = self.local_foot_vertices_pos[3]
+
+        # Compute right foot (RF) transform w.r.t. the world (W) frame
+        # world_H_base = self.kindyn.get_world_base_transform()
+        base_H_r_foot = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="r_foot")
+        W_H_RF = world_H_base.dot(base_H_r_foot)
+
+        # Get the right-foot vertices positions in the world frame
+        W_RFL_vertex_pos_hom = W_H_RF @ np.concatenate((FL_vertex_pos, [1]))
+        W_RFR_vertex_pos_hom = W_H_RF @ np.concatenate((FR_vertex_pos, [1]))
+        W_RBL_vertex_pos_hom = W_H_RF @ np.concatenate((BL_vertex_pos, [1]))
+        W_RBR_vertex_pos_hom = W_H_RF @ np.concatenate((BR_vertex_pos, [1]))
+
+        # Convert homogeneous to cartesian coordinates
+        W_RFL_vertex_pos = W_RFL_vertex_pos_hom[0:3]
+        W_RFR_vertex_pos = W_RFR_vertex_pos_hom[0:3]
+        W_RBL_vertex_pos = W_RBL_vertex_pos_hom[0:3]
+        W_RBR_vertex_pos = W_RBR_vertex_pos_hom[0:3]
+
+        # Compute left foot (LF) transform w.r.t. the world (W) frame
+        # world_H_base = self.kindyn.get_world_base_transform()
+        base_H_l_foot = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="l_foot")
+        W_H_LF = world_H_base.dot(base_H_l_foot)
+
+        # Get the left-foot vertices positions wrt the world frame
+        W_LFL_vertex_pos_hom = W_H_LF @ np.concatenate((FL_vertex_pos, [1]))
+        W_LFR_vertex_pos_hom = W_H_LF @ np.concatenate((FR_vertex_pos, [1]))
+        W_LBL_vertex_pos_hom = W_H_LF @ np.concatenate((BL_vertex_pos, [1]))
+        W_LBR_vertex_pos_hom = W_H_LF @ np.concatenate((BR_vertex_pos, [1]))
+
+        # Convert homogeneous to cartesian coordinates
+        W_LFL_vertex_pos = W_LFL_vertex_pos_hom[0:3]
+        W_LFR_vertex_pos = W_LFR_vertex_pos_hom[0:3]
+        W_LBL_vertex_pos = W_LBL_vertex_pos_hom[0:3]
+        W_LBR_vertex_pos = W_LBR_vertex_pos_hom[0:3]
+
+        # Store the positions of both right-foot and left-foot vertices in the world frame
+        W_vertices_positions = [W_RFL_vertex_pos, W_RFR_vertex_pos, W_RBL_vertex_pos, W_RBR_vertex_pos,
+                                W_LFL_vertex_pos, W_LFR_vertex_pos, W_LBL_vertex_pos, W_LBR_vertex_pos]
+
+        return W_vertices_positions
+
     def compute_global_frame_features(self) -> None:
         """Extract global features associated to each retargeted frame"""
 
         # Debug
         print("Computing global frame features")
+
+        # Associate indexes to feet vertices names, from Right-foot Front Left (RFL) to Left-foot Back Right (LBR)
+        vertex_indexes_to_names = {0: "RFL", 1: "RFR", 2: "RBL", 3: "RBR",
+                                   4: "LFL", 5: "LFR", 6: "LBL", 7: "LBR"}
+
+        # Define height threshold for foot contact
+        thresh = 1e-3
 
         # Subsampling (discard one ik solution over two)
         for frame_idx in range(0, len(self.ik_solutions), 2):
@@ -95,6 +155,25 @@ class GlobalFrameFeatures:
             ground_chest_direction = [chest_direction[0], chest_direction[1]] # project on the ground
             ground_chest_direction = ground_chest_direction / np.linalg.norm(ground_chest_direction) # of unitary norm
             self.ground_chest_directions.append(ground_chest_direction)
+
+            # Contact vectors (RF,LF)
+            # Retrieve the vertices positions in the world (W) frame
+            W_vertices_positions = self.compute_W_vertices_pos(world_H_base)
+
+            # Compute the current support vertex as the lowest among the feet vertices
+            vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
+            support_vertex = np.argmin(vertices_heights)
+
+            #create contact vector, if one foot is support and other is close enough to the ground, assume double support
+            # print("both foot (L,R) min heights: [", np.min(vertices_heights[:4]), ",", np.min(vertices_heights[4:]), "]")
+            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= thresh) or (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= thresh):
+                contact_vector = [1,1]
+            elif vertex_indexes_to_names[support_vertex][0] == "R":
+                contact_vector = [1,0]
+            else:  
+                contact_vector = [0,1]
+
+            self.contact_vectors.append(contact_vector)
 
             # Facing direction
             facing_direction = ground_base_direction + ground_chest_direction # mean of ground base and chest directions
@@ -138,6 +217,7 @@ class GlobalWindowFeatures:
     window_indexes: List
 
     # Features storage
+    contact_vectors: List = field(default_factory=list)
     desired_velocities: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
@@ -167,6 +247,7 @@ class GlobalWindowFeatures:
 
             # Initialize placeholders for the current window
             future_traj_length = 0
+            current_global_contact_vectors = []
             current_global_base_positions = []
             current_global_facing_directions = []
             current_global_base_velocities = []
@@ -174,6 +255,7 @@ class GlobalWindowFeatures:
             for window_index in self.window_indexes:
 
                 # Store the base positions, facing directions and base velocities in the current window
+                current_global_contact_vectors.append(global_frame_features.contact_vectors[i + window_index])
                 current_global_base_positions.append(global_frame_features.base_positions[i + window_index])
                 current_global_facing_directions.append(global_frame_features.facing_directions[i + window_index])
                 current_global_base_velocities.append(global_frame_features.base_velocities[i + window_index])
@@ -188,6 +270,7 @@ class GlobalWindowFeatures:
                     base_position_prev = base_position
 
             # Store global features for the current window
+            self.contact_vectors.append(current_global_contact_vectors)
             self.desired_velocities.append(future_traj_length)
             self.base_positions.append(current_global_base_positions)
             self.facing_directions.append(current_global_facing_directions)
@@ -259,6 +342,7 @@ class LocalWindowFeatures:
     window_indexes: List
 
     # Features storage
+    contact_vectors: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
     base_velocities: List = field(default_factory=list)
@@ -283,11 +367,13 @@ class LocalWindowFeatures:
         for i in range(len(global_window_features.base_positions)):
 
             # Store the global features associated to the currently-considered window of retargeted frames
+            current_global_contact_vectors = global_window_features.contact_vectors[i]
             current_global_base_positions = global_window_features.base_positions[i]
             current_global_facing_directions = global_window_features.facing_directions[i]
             current_global_base_velocities = global_window_features.base_velocities[i]
 
             # Placeholders for the local features associated to the currently-considered window of retargeted frames
+            current_local_contact_vectors = []
             current_local_base_positions = []
             current_local_facing_directions = []
             current_local_base_velocities = []
@@ -316,21 +402,25 @@ class LocalWindowFeatures:
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
+                current_global_contact_vector = current_global_contact_vectors[j][0:2]
                 current_global_base_pos = current_global_base_positions[j][0:2]
                 current_global_facing_dir = current_global_facing_directions[j]
                 current_global_base_vel = current_global_base_velocities[j][0:2]
 
                 # Express them locally
+                current_local_contact_vector = current_global_contact_vector #because contact vector doesn't have a ref frame
                 current_local_base_pos = facing_R_world.dot(current_global_base_pos - reference_base_pos)
                 current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
                 # Fill the placeholders for the local features associated to the current window
+                current_local_contact_vectors.append(current_local_contact_vector)
                 current_local_base_positions.append(current_local_base_pos)
                 current_local_facing_directions.append(current_local_facing_dir)
                 current_local_base_velocities.append(current_local_base_vel)
 
             # Store local features for the current window
+            self.contact_vectors.append(current_local_contact_vectors)
             self.base_positions.append(current_local_base_positions)
             self.facing_directions.append(current_local_facing_directions)
             self.base_velocities.append(current_local_base_velocities)
@@ -350,6 +440,7 @@ class FeaturesExtractor:
               kindyn: kindyncomputations.KinDynComputations,
               frontal_base_dir: List,
               frontal_chest_dir: List,
+              local_foot_vertices_pos: List,
               dt_mean: float = 1/50,
               window_length_s: float = 1,
               window_granularity_s: float = 0.2) -> "FeaturesExtractor":
@@ -369,7 +460,8 @@ class FeaturesExtractor:
                                         dt_mean=dt_mean,
                                         kindyn=kindyn,
                                         frontal_base_dir=frontal_base_dir,
-                                        frontal_chest_dir=frontal_chest_dir)
+                                        frontal_chest_dir=frontal_chest_dir,
+                                        local_foot_vertices_pos=local_foot_vertices_pos)
         gwf = GlobalWindowFeatures.build(window_length_frames=window_length_frames,
                                          window_step=window_step,
                                          window_indexes=window_indexes)
@@ -408,6 +500,12 @@ class FeaturesExtractor:
             # Initialize current input vector
             X_i = []
 
+            # Add current local contact vectors (24 components)
+            current_local_contact_vectors = []
+            for local_contact_vector in self.local_window_features.contact_vectors[i - window_length_frames]:
+                current_local_contact_vectors.extend(local_contact_vector)
+            X_i.extend(current_local_contact_vectors)
+
             # Add current local base positions (24 components)
             current_local_base_positions = []
             for local_base_position in self.local_window_features.base_positions[i - window_length_frames]:
@@ -438,7 +536,7 @@ class FeaturesExtractor:
             prev_s_dot = self.global_frame_features.s_dot[i - 2]
             X_i.extend(prev_s_dot)
 
-            # Store current input vector (137 components)
+            # Store current input vector (161 components)
             X.append(X_i)
 
         # Debug
