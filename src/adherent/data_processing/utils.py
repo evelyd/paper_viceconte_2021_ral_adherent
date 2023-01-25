@@ -455,3 +455,61 @@ def visualize_local_features(local_window_features,
         # Plot
         plt.show()
         plt.pause(0.0001)
+
+def visualize_timesteps_until_contact_state_change(local_window_features,
+                             ik_solutions: List,
+                             icub: iCub,
+                             controlled_joints: List,
+                             gazebo: scenario.GazeboSimulator) -> None:
+    """Visualize the retargeted frames along with the associated local features."""
+
+    window_length_frames = local_window_features.window_length_frames
+    window_step = local_window_features.window_step
+    initial_frame = window_length_frames
+    final_frame = round(len(ik_solutions)/2) - window_length_frames - window_step - 1
+
+    plt.ion()
+
+    for i in range(initial_frame, final_frame):
+
+        # Debug
+        print(i - initial_frame, "/", final_frame - initial_frame)
+
+        # The ik solutions are stored at double frequency w.r.t. the extracted features
+        ik_solution = ik_solutions[2 * i]
+
+        # Retrieve the base pose and the joint positions
+        joint_positions = np.asarray(ik_solution["joint_positions"])
+        base_position = np.asarray(ik_solution["base_position"])
+        base_quaternion = np.asarray(ik_solution["base_quaternion"])
+
+        # Reset the base pose and the joint positions
+        icub.to_gazebo().reset_base_pose(base_position, base_quaternion)
+        icub.to_gazebo().reset_joint_positions(joint_positions, controlled_joints)
+        gazebo.run(paused=True)
+
+        # Retrieve local features
+        timesteps_until_contact_state_change = local_window_features.timesteps_until_contact_state_change[i - window_length_frames]
+
+        # ====================================
+        # TIMESTEPS UNTIL CONTACT STATE CHANGE
+        # ====================================
+
+        # Figure 1 for the contact state change
+        plt.figure(1)
+        plt.clf()
+
+        # Plot ts
+        print(timesteps_until_contact_state_change)
+        plt.plot(range(0,len(timesteps_until_contact_state_change)), timesteps_until_contact_state_change, c='k')
+
+        # Configuration
+        plt.ylim([0, 70])
+        plt.xlabel('Current timestep')
+        plt.ylabel('Timesteps until next contact change')
+        plt.title("Timesteps until next contact state change $t_S$")
+        plt.grid('on')
+
+        # Plot
+        plt.show()
+        plt.pause(0.0001)

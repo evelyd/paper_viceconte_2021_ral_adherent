@@ -30,6 +30,7 @@ parser.add_argument("--mirrored", help="Visualize the mirrored version of the se
 # Plot configuration
 parser.add_argument("--plot_global", help="Visualize the computed global features.",action="store_true")
 parser.add_argument("--plot_local", help="Visualization the computed local features.",action="store_true")
+parser.add_argument("--plot_ts", help="Visualize the computed time until next contact state change.",action="store_true")
 
 # Store configuration
 parser.add_argument("--save", help="Store the network input and output vectors in json format.",action="store_true")
@@ -41,6 +42,7 @@ retargeted_mocap_index = args.portion
 mirrored = args.mirrored
 plot_global = args.plot_global
 plot_local = args.plot_local
+plot_ts = args.plot_ts
 store_as_json = args.save
 
 # ====================
@@ -186,6 +188,19 @@ if plot_local:
 
     input("Press Enter to start the visualization of the LOCAL features")
     utils.visualize_local_features(local_window_features=extractor.get_local_window_features(),
+                                   ik_solutions=ik_solutions,
+                                   icub=icub,
+                                   controlled_joints=controlled_joints,
+                                   gazebo=gazebo)
+
+# ============================================================================
+# VISUALIZE THE RETARGETED MOTION AND THE TIME UNTIL NEXT CONTACT STATE CHANGE
+# ============================================================================
+
+if plot_ts:
+
+    input("Press Enter to start the visualization of the time until contact state change")
+    utils.visualize_timesteps_until_contact_state_change(local_window_features=extractor.get_local_window_features(),
                                    ik_solutions=ik_solutions,
                                    icub=icub,
                                    controlled_joints=controlled_joints,
