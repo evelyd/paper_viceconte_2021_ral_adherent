@@ -543,10 +543,11 @@ class KFWBGR(WBGR):
             # Compute the current support vertex as the lowest among the feet vertices
             vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
             support_vertex = np.argmin(vertices_heights)
+            min_v_height = np.min(vertices_heights)
 
             #create contact vector, if one foot is support and other is close enough to the ground, assume double support
             # print("both foot (L,R) min heights: [", np.min(vertices_heights[:4]), ",", np.min(vertices_heights[4:]), "]")
-            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= thresh) or (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= thresh):
+            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= min_v_height + thresh) or (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= min_v_height + thresh):
                 contact_vector = [1,1]
             elif vertex_indexes_to_names[support_vertex][0] == "R":
                 contact_vector = [1,0]
@@ -609,7 +610,7 @@ class KFWBGR(WBGR):
 
         plt.scatter(right_support_positions[:,0], right_support_positions[:,1], c="blue", marker = "^", s=50, label="right foot support")
         plt.scatter(left_support_positions[:,0], left_support_positions[:,1], c="red", marker = "^", s=50, label="left foot support")
-        plt.scatter(double_support_positions[:,0], double_support_positions[:,1], c="purple", s=20, label="double support")
+        plt.scatter(double_support_positions[:,0], double_support_positions[:,1], c="green", s=20, label="double support")
 
         plt.legend()
         plt.ion()
