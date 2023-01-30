@@ -569,7 +569,7 @@ class FeaturesExtractor:
             # Add current local contact vectors (24 components)
             current_local_contact_vectors = []
             for local_contact_vector in self.local_window_features.contact_vectors[i - window_length_frames]:
-                current_local_contact_vectors.extend(local_contact_vector)
+                current_local_contact_vectors.extend(local_contact_vector.tolist())
             X_i.extend(current_local_contact_vectors)
 
             # Add current local base positions (24 components)
@@ -640,7 +640,7 @@ class FeaturesExtractor:
             next_local_contact_vectors = []
             for j in range(len(self.local_window_features.contact_vectors[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
-                    next_local_contact_vectors.extend(self.local_window_features.contact_vectors[i - window_length_frames + 1][j])
+                    next_local_contact_vectors.extend((self.local_window_features.contact_vectors[i - window_length_frames + 1][j]).tolist())
             Y_i.extend(next_local_contact_vectors)
 
             # Add future local base positions (12 components)
