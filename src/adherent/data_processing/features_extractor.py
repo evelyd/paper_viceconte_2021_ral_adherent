@@ -24,7 +24,8 @@ class GlobalFrameFeatures:
     local_foot_vertices_pos: List
 
     # Features storage
-    timesteps_until_contact_state_change: List = field(default_factory=list)
+    t_Es: List = field(default_factory=list)
+    t_Ss: List = field(default_factory=list)
     contact_vectors: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     ground_base_directions: List = field(default_factory=list)
@@ -164,10 +165,12 @@ class GlobalFrameFeatures:
             # Compute the current support vertex as the lowest among the feet vertices
             vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
             support_vertex = np.argmin(vertices_heights)
+            min_v_height = np.min(vertices_heights)
 
             #create contact vector, if one foot is support and other is close enough to the ground, assume double support
             # print("both foot (L,R) min heights: [", np.min(vertices_heights[:4]), ",", np.min(vertices_heights[4:]), "]")
-            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= thresh) or (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= thresh):
+            if (vertex_indexes_to_names[support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= min_v_height + thresh) or \
+                (vertex_indexes_to_names[support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= min_v_height + thresh):
                 contact_vector = np.array([1,1])
             elif vertex_indexes_to_names[support_vertex][0] == "R":
                 contact_vector = np.array([1,0])
@@ -207,27 +210,39 @@ class GlobalFrameFeatures:
             base_angular_velocity = theta / self.dt_mean
             self.base_angular_velocities.append(base_angular_velocity)
 
-        # Find time until next contact state change at each timestep
-        for cv_idx in range(0, len(self.contact_vectors)):
-            # in here we go through all the ik solutions
-            # Get the indices of the current contact vector
-            l_iter = iter(self.contact_vectors[cv_idx:])
-            
-            current_cv = self.contact_vectors[cv_idx]
-            next_cv = current_cv
-            counter = cv_idx-1
-            while np.array_equal(current_cv,next_cv):
-                #stop once the contact vector changes, i.e. the contact state has changed
+        # Find time since previous and until next contact state change at each timestep
+        steps_between = []
+        t_Es = np.zeros(len(self.contact_vectors))
+        t_Ss = np.zeros(len(self.contact_vectors))
+        counter = 0
+
+        for cv_idx in range(1, len(self.contact_vectors)):
+            if (self.contact_vectors[cv_idx] != self.contact_vectors[cv_idx-1]).all():
+                # If there is a contact state change between the previous and current contact vectors, add the length of that step
+                steps_between.append(counter)
+                counter = 0
+
+            else:
+                # Count steps until a contact state change
                 counter += 1
-                next_cv = next(l_iter, "end")
-            
-            # Calculate the timesteps until next contact state change
-            t_til_contact_state_change = counter - cv_idx
 
-            # Add time to list
-            self.timesteps_until_contact_state_change.append(t_til_contact_state_change)
-        print("current time til contact change:", self.timesteps_until_contact_state_change)
+            # Find the time until next contact change
+            t_Es[cv_idx] = counter
 
+        # Create vector that contains full length of current contact for each timestep
+        current_contact_lengths = np.empty(0)
+
+        for contact in steps_between:
+            current_contact_lengths = np.concatenate((current_contact_lengths,contact*np.ones(contact+1)))
+
+        if np.sum(steps_between) < len(self.contact_vectors):
+            current_contact_lengths = np.concatenate((current_contact_lengths,t_Es[-1]*np.ones(int(t_Es[-1])+1)))
+
+        # Calculate t_S by taking current contact length - t_E at that timestep
+        t_Ss = current_contact_lengths - t_Es
+
+        self.t_Es = t_Es
+        self.t_Ss = t_Ss
 
 @dataclass
 class GlobalWindowFeatures:
@@ -239,7 +254,8 @@ class GlobalWindowFeatures:
     window_indexes: List
 
     # Features storage
-    timesteps_until_contact_state_change: List = field(default_factory=list)
+    t_Es: List = field(default_factory=list)
+    t_Ss: List = field(default_factory=list)
     contact_vectors: List = field(default_factory=list)
     desired_velocities: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
@@ -270,7 +286,8 @@ class GlobalWindowFeatures:
 
             # Initialize placeholders for the current window
             future_traj_length = 0
-            current_global_timesteps_until_contact_state_change = []
+            current_global_t_Es = []
+            current_global_t_Ss = []
             current_global_contact_vectors = []
             current_global_base_positions = []
             current_global_facing_directions = []
@@ -279,7 +296,8 @@ class GlobalWindowFeatures:
             for window_index in self.window_indexes:
 
                 # Store the base positions, facing directions and base velocities in the current window
-                current_global_timesteps_until_contact_state_change.append(global_frame_features.timesteps_until_contact_state_change[i + window_index])
+                current_global_t_Es.append(global_frame_features.t_Es[i + window_index])
+                current_global_t_Ss.append(global_frame_features.t_Ss[i + window_index])
                 current_global_contact_vectors.append(global_frame_features.contact_vectors[i + window_index])
                 current_global_base_positions.append(global_frame_features.base_positions[i + window_index])
                 current_global_facing_directions.append(global_frame_features.facing_directions[i + window_index])
@@ -295,7 +313,8 @@ class GlobalWindowFeatures:
                     base_position_prev = base_position
 
             # Store global features for the current window
-            self.timesteps_until_contact_state_change.append(current_global_timesteps_until_contact_state_change)
+            self.t_Es.append(current_global_t_Es)
+            self.t_Ss.append(current_global_t_Ss)
             self.contact_vectors.append(current_global_contact_vectors)
             self.desired_velocities.append(future_traj_length)
             self.base_positions.append(current_global_base_positions)
@@ -368,7 +387,8 @@ class LocalWindowFeatures:
     window_indexes: List
 
     # Features storage
-    timesteps_until_contact_state_change: List = field(default_factory=list)
+    t_Es: List = field(default_factory=list)
+    t_Ss: List = field(default_factory=list)
     contact_vectors: List = field(default_factory=list)
     base_positions: List = field(default_factory=list)
     facing_directions: List = field(default_factory=list)
@@ -394,14 +414,16 @@ class LocalWindowFeatures:
         for i in range(len(global_window_features.base_positions)):
 
             # Store the global features associated to the currently-considered window of retargeted frames
-            current_global_timesteps_until_contact_state_change = global_window_features.timesteps_until_contact_state_change[i]
+            current_global_t_Es = global_window_features.t_Es[i]
+            current_global_t_Ss = global_window_features.t_Ss[i]
             current_global_contact_vectors = global_window_features.contact_vectors[i]
             current_global_base_positions = global_window_features.base_positions[i]
             current_global_facing_directions = global_window_features.facing_directions[i]
             current_global_base_velocities = global_window_features.base_velocities[i]
 
             # Placeholders for the local features associated to the currently-considered window of retargeted frames
-            current_local_timesteps_until_contact_state_change = []
+            current_local_t_Es = []
+            current_local_t_Ss = []
             current_local_contact_vectors = []
             current_local_base_positions = []
             current_local_facing_directions = []
@@ -431,7 +453,8 @@ class LocalWindowFeatures:
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
-                current_global_timestep_until_contact_state_change = current_global_timesteps_until_contact_state_change[j]
+                current_global_t_E = current_global_t_Es[j]
+                current_global_t_S = current_global_t_Ss[j]
                 current_global_contact_vector = current_global_contact_vectors[j][0:2]
                 current_global_base_pos = current_global_base_positions[j][0:2]
                 current_global_facing_dir = current_global_facing_directions[j]
@@ -444,14 +467,16 @@ class LocalWindowFeatures:
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
                 # Fill the placeholders for the local features associated to the current window
-                current_local_timesteps_until_contact_state_change.append(current_global_timestep_until_contact_state_change)
+                current_local_t_Es.append(current_global_t_E)
+                current_local_t_Ss.append(current_global_t_S)
                 current_local_contact_vectors.append(current_local_contact_vector)
                 current_local_base_positions.append(current_local_base_pos)
                 current_local_facing_directions.append(current_local_facing_dir)
                 current_local_base_velocities.append(current_local_base_vel)
 
             # Store local features for the current window
-            self.timesteps_until_contact_state_change.append(current_local_timesteps_until_contact_state_change)
+            self.t_Es.append(current_local_t_Es)
+            self.t_Ss.append(current_local_t_Ss)
             self.contact_vectors.append(current_local_contact_vectors)
             self.base_positions.append(current_local_base_positions)
             self.facing_directions.append(current_local_facing_directions)
@@ -532,12 +557,15 @@ class FeaturesExtractor:
             # Initialize current input vector
             X_i = []
 
-            # Add current local timesteps until contact change (12 components)
-            current_local_timesteps_until_contact_state_change = []
-            for local_timestep_until_contact_state_change in self.local_window_features.timesteps_until_contact_state_change[i - window_length_frames]:
-                current_local_timesteps_until_contact_state_change.append(local_timestep_until_contact_state_change)
-            X_i.extend(current_local_timesteps_until_contact_state_change)
 
+            # Add current local timesteps since contact change (1 component)
+            current_local_t_Es = [self.global_window_features.t_Es[i - window_length_frames][5]]
+            X_i.extend(current_local_t_Es)
+
+            # Add current local timesteps until contact change (1 component)
+            current_local_t_Ss = [self.global_window_features.t_Ss[i - window_length_frames][5]]
+            X_i.extend(current_local_t_Ss)
+            
             # Add current local contact vectors (24 components)
             current_local_contact_vectors = []
             for local_contact_vector in self.local_window_features.contact_vectors[i - window_length_frames]:
@@ -574,7 +602,7 @@ class FeaturesExtractor:
             prev_s_dot = self.global_frame_features.s_dot[i - 2]
             X_i.extend(prev_s_dot)
 
-            # Store current input vector (173 components)
+            # Store current input vector (163 components)
             X.append(X_i)
 
         # Debug
@@ -600,12 +628,13 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local local timesteps until contact change (6 components)
-            next_local_timesteps_until_contact_state_change = []
-            for j in range(len(self.local_window_features.timesteps_until_contact_state_change[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
-                    next_local_timesteps_until_contact_state_change.append(self.local_window_features.timesteps_until_contact_state_change[i - window_length_frames + 1][j])
-            Y_i.extend(next_local_timesteps_until_contact_state_change)
+            # Add future local timesteps since contact change (1 components)
+            current_local_t_Es = [self.local_window_features.t_Es[i - window_length_frames + 1][5]]
+            Y_i.extend(current_local_t_Es)
+
+            # Add future local timesteps until contact change (1 components)
+            current_local_t_Ss = [self.local_window_features.t_Es[i - window_length_frames + 1][5]]
+            Y_i.extend(current_local_t_Ss)
 
             # Add future local contact vectors (12 components)
             next_local_contact_vectors = []
@@ -655,7 +684,7 @@ class FeaturesExtractor:
             current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (121 components)
+            # Store current output vector (117 components)
             Y.append(Y_i)
 
         # Debug
