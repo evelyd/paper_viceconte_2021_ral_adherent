@@ -53,7 +53,7 @@ store_as_json = args.save
 if dataset == "D2":
     retargeted_mocaps = {1:"1_forward_normal_step",2:"2_backward_normal_step",3:"3_left_and_right_normal_step",
                          4:"4_diagonal_normal_step",5:"5_mixed_normal_step"}
-    limits = {1: [3750, 4750], 2: [1850, 34500], 3: [2400, 36850], 4: [1550, 16000], 5: [2550, 82250]} #[3750, 35750]
+    limits = {1: [3750, 35750], 2: [1850, 34500], 3: [2400, 36850], 4: [1550, 16000], 5: [2550, 82250]}
 elif dataset == "D3":
     retargeted_mocaps = {6:"6_forward_small_step",7:"7_backward_small_step",8:"8_left_and_right_small_step",
                          9:"9_diagonal_small_step",10:"10_mixed_small_step",11:"11_mixed_normal_and_small_step"}
