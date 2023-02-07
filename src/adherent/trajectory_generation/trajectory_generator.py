@@ -553,12 +553,16 @@ class KinematicComputations:
         vertex_indexes_to_names = {0: "RFL", 1: "RFR", 2: "RBL", 3: "RBR",
                                    4: "LFL", 5: "LFR", 6: "LBL", 7: "LBR"}
 
+        # Define height threshold for foot contact
+        thresh = 1e-3
+
         # Retrieve the vertices positions in the world frame
         W_vertices_positions = self.compute_W_vertices_pos()
 
         # Compute the current support vertex
         vertices_heights = [W_vertex[2] for W_vertex in W_vertices_positions]
         self.support_vertex = np.argmin(vertices_heights)
+        min_v_height = np.min(vertices_heights)
 
         # Check whether the deactivation time of the last footstep needs to be updated
         update_footstep_deactivation_time = self.footsteps_extractor.should_update_footstep_deactivation_time(kindyn=self.kindyn)
@@ -576,11 +580,17 @@ class KinematicComputations:
         # If the support vertex changed
         else:
 
-            # Update the support foot
-            if vertex_indexes_to_names[self.support_vertex][0] == "R":
-                self.support_foot = "r_foot"
+            # Only update the support foot if we are not in double support
+            if not (vertex_indexes_to_names[self.support_vertex][0] == "R" and np.min(vertices_heights[4:]) <= min_v_height + thresh) and \
+                not (vertex_indexes_to_names[self.support_vertex][0] == "L" and np.min(vertices_heights[:4]) <= min_v_height + thresh):
+                print("not in double support")
+                # Update the support foot
+                if vertex_indexes_to_names[self.support_vertex][0] == "R":
+                    self.support_foot = "r_foot"
+                else:
+                    self.support_foot = "l_foot"
             else:
-                self.support_foot = "l_foot"
+                print("currently in double support")
 
             # If the support foot changed
             if self.support_foot != self.support_foot_prev:
@@ -677,9 +687,9 @@ class Plotter:
         """Plot the future trajectory predicted by the network (magenta)."""
 
         # Retrieve predicted base positions, facing directions and base velocities from the denormalized network output
-        predicted_base_pos = denormalized_current_output[0:12]
-        predicted_facing_dirs = denormalized_current_output[12:24]
-        predicted_base_vel = denormalized_current_output[24:36]
+        predicted_base_pos = denormalized_current_output[14:26]
+        predicted_facing_dirs = denormalized_current_output[26:38]
+        predicted_base_vel = denormalized_current_output[38:50]
 
         plt.figure(figure_facing_dirs)
 
@@ -1088,7 +1098,7 @@ class Autoregression:
         # =====================
 
         # Extract future base positions for blending (i.e. in the plot reference frame)
-        future_base_pos_plot = denormalized_current_output[0:12]
+        future_base_pos_plot = denormalized_current_output[14:26]
         future_base_pos_blend = [[0.0, 0.0]]
         for k in range(0, len(future_base_pos_plot), 2):
             future_base_pos_blend.append([-future_base_pos_plot[k + 1], future_base_pos_plot[k]])
@@ -1159,7 +1169,7 @@ class Autoregression:
         # ========================
 
         # Extract future facing directions for blending (i.e. in the plot reference frame)
-        future_facing_dirs_plot = denormalized_current_output[12:24]
+        future_facing_dirs_plot = denormalized_current_output[26:38]
         future_facing_dirs_blend = [[0.0, 1.0]]
         for k in range(0, len(future_facing_dirs_plot), 2):
             future_facing_dirs_blend.append([-future_facing_dirs_plot[k + 1], future_facing_dirs_plot[k]])
@@ -1207,7 +1217,7 @@ class Autoregression:
 
         # Add as last element the current (local) base velocity (this is an approximation)
         new_past_trajectory_base_velocities.append(self.new_facing_R_world.dot(rotation_2D(self.new_base_yaw).dot(
-            [denormalized_current_output[100], denormalized_current_output[101]])))
+            [denormalized_current_output[114], denormalized_current_output[115]])))
 
         # Update past base velocities
         self.new_past_trajectory_base_velocities = new_past_trajectory_base_velocities
@@ -1231,7 +1241,7 @@ class Autoregression:
         # ======================
 
         # Extract future base velocities for blending (i.e. in the plot reference frame)
-        future_base_vel_plot = denormalized_current_output[24:36]
+        future_base_vel_plot = denormalized_current_output[38:50]
         future_base_vel_blend = [[0.0, self.base_vel_norm]] # This is an approximation.
         for k in range(0, len(future_base_vel_plot), 2):
             future_base_vel_blend.append([-future_base_vel_plot[k + 1], future_base_vel_plot[k]])
@@ -1280,11 +1290,11 @@ class Autoregression:
         """Use the joint positions and velocities in an autoregressive fashion."""
 
         # Add the (already normalized) joint positions to the next input
-        s = current_output[0][36:68]
+        s = current_output[0][50:82]
         next_nn_X.extend(s)
 
         # Add the (already normalized) joint velocities to the next input
-        s_dot = current_output[0][68:100]
+        s_dot = current_output[0][82:114]
         next_nn_X.extend(s_dot)
 
         return next_nn_X
@@ -1480,13 +1490,13 @@ class TrajectoryGenerator:
         """Apply joint positions and base orientation from the output returned by the network."""
 
         # Extract the new joint positions from the denormalized network output
-        joint_positions = np.asarray(denormalized_current_output[36:68])
+        joint_positions = np.asarray(denormalized_current_output[50:82])
 
         # If the robot is stopped, handle unnatural in-place rotations by imposing zero angular base velocity
         if self.autoregression.stopped:
             omega = 0
         else:
-            omega = denormalized_current_output[102]
+            omega = denormalized_current_output[116]
 
         # Extract the new base orientation from the output
         base_yaw_dot = omega * self.generation_rate

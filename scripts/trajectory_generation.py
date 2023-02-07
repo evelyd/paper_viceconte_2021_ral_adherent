@@ -22,7 +22,6 @@ from adherent.data_processing.utils import define_frontal_base_direction
 from adherent.data_processing.utils import define_frontal_chest_direction
 from adherent.trajectory_generation.utils import define_initial_base_height
 from adherent.trajectory_generation.utils import define_initial_past_trajectory
-from adherent.trajectory_generation.utils import define_initial_past_trajectory
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -125,10 +124,10 @@ local_foot_vertices_pos = define_foot_vertices(robot="iCubV2_5")
 
 # Define robot-specific initial input X for the trajectory generation neural network
 initial_nn_X = define_initial_nn_X(robot="iCubV2_5")
-
+print(len(initial_nn_X))
 # Define robot-specific initial past trajectory features
-initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel = \
-    define_initial_past_trajectory(robot="iCubV2_5")
+initial_past_trajectory_t_E, initial_past_trajectory_t_S, initial_past_trajectory_contact_vectors, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, \
+    initial_past_trajectory_base_vel = define_initial_past_trajectory(robot="iCubV2_5")
 
 # Define robot-specific initial base yaw angle
 initial_base_yaw = define_initial_base_yaw(robot="iCubV2_5")

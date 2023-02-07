@@ -161,7 +161,8 @@ def define_initial_nn_X(robot: str) -> List:
         raise Exception("Initial network input X only defined for iCubV2_5.")
 
     # Initial input manually retrieved from a standing pose
-    initial_nn_X = [[0.2119528955450237, -0.0030393414305661757, 0.2088665596830631, -0.0021020581878808007,
+    initial_nn_X = [[0, 99, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                     0.2119528955450237, -0.0030393414305661757, 0.2088665596830631, -0.0021020581878808007,
                      0.20531231168918174, -0.0008621646186016302, 0.2038031784172399, 0.0006000018873639539,
                      0.20492310200003655, 0.00219387868363895, 0.0, 0.0, -0.2861243642562259, 0.009288430936687906,
                      -0.31823372134674327, 0.0041163061304422335, -0.3351330296979504, 0.00013665165796125482,
@@ -199,8 +200,12 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
 
     # The above quantities are expressed in the frame specified by the initial base position and the facing direction
 
+    # Initial past contact timings
+    initial_past_trajectory_t_E = 0
+    initial_past_trajectory_t_S = 99
+
     # Initial past contact vectors, assume standing pose, double support
-    initial_past_trajectory_head_xs = [[1, 1],
+    initial_past_trajectory_contact_vectors = [[1, 1],
                                        [1, 1],
                                        [1, 1],
                                        [1, 1],
@@ -411,7 +416,7 @@ def define_initial_past_trajectory(robot: str) -> (List, List, List):
                                 [0.0027292570019628926, -0.003613289208665431],
                                 [0.0027306743709001454, -0.003612217655202784]]
 
-    return initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
+    return initial_past_trajectory_t_E, initial_past_trajectory_t_S, initial_past_trajectory_contact_vectors, initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel
 
 def define_initial_base_height(robot: str) -> List:
     """Define the robot-specific initial height of the base frame."""
