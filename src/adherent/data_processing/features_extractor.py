@@ -9,6 +9,7 @@ from gym_ignition.rbd.idyntree import numpy
 from adherent.data_processing import utils
 from gym_ignition.rbd.conversions import Quaternion
 from gym_ignition.rbd.idyntree import kindyncomputations
+from scipy.spatial.transform import Rotation
 
 
 @dataclass
@@ -31,6 +32,9 @@ class GlobalFrameFeatures:
     base_angular_velocities: List = field(default_factory=list)
     s: List = field(default_factory=list)
     s_dot: List = field(default_factory=list)
+    base_angles: List = field(default_factory=list)
+    base_quaternions: List = field(default_factory=list)
+    base_directions: List = field(default_factory=list)
 
     @staticmethod
     def build(ik_solutions: List,
@@ -86,6 +90,10 @@ class GlobalFrameFeatures:
             ground_base_direction = ground_base_direction / np.linalg.norm(ground_base_direction) # of unitary norm
             self.ground_base_directions.append(ground_base_direction)
 
+            # Base direction
+            base_direction = base_direction / np.linalg.norm(base_direction) # of unitary norm
+            self.base_directions.append(base_direction)
+
             # Ground chest direction
             world_H_base = self.kindyn.get_world_base_transform()
             base_H_chest = self.kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="chest")
@@ -105,6 +113,13 @@ class GlobalFrameFeatures:
             joint_angles = joint_positions
             self.s.append(joint_angles)
 
+            # Base quaternion
+            self.base_quaternions.append(base_quaternion)
+
+            # Base rotation in terms of RPY
+            base_angle = Rotation.from_matrix(base_rotation).as_euler('xyz')
+            self.base_angles.append(base_angle)
+
             # Do not compute velocities by differentiation for the first frame
             if frame_idx == 0:
                 continue
@@ -119,12 +134,13 @@ class GlobalFrameFeatures:
             base_velocity = (base_position - base_position_prev) / self.dt_mean
             self.base_velocities.append(base_velocity)
 
-            # Base angular velocities by differentiation of ground base directions
-            ground_base_direction_prev = self.ground_base_directions[-2]
-            cos_theta = np.dot(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
-            sin_theta = np.cross(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
-            theta = math.atan2(sin_theta, cos_theta)
-            base_angular_velocity = theta / self.dt_mean
+            # Base angular velocities by differentiation of base quaternion
+            base_quaternion_prev = self.base_quaternions[-2]
+            base_quaternion_derivative = (base_quaternion - base_quaternion_prev) / self.dt_mean
+            E = np.array([[-base_quaternion[1], base_quaternion[0], -base_quaternion[3], base_quaternion[2]],
+                          [-base_quaternion[2], base_quaternion[3], base_quaternion[0], -base_quaternion[1]],
+                          [-base_quaternion[3], -base_quaternion[2], base_quaternion[1], base_quaternion[0]]])
+            base_angular_velocity = 2 * E.dot(base_quaternion_derivative)
             self.base_angular_velocities.append(base_angular_velocity)
 
 
@@ -199,8 +215,7 @@ class LocalFrameFeatures:
     """Class for the local features associated to each retargeted frame."""
 
     # Features storage
-    base_x_velocities: List = field(default_factory=list)
-    base_z_velocities: List = field(default_factory=list)
+    base_velocities: List = field(default_factory=list)
     base_angular_velocities: List = field(default_factory=list)
 
     @staticmethod
@@ -220,33 +235,18 @@ class LocalFrameFeatures:
 
         for i in range(1, len(global_frame_features.base_positions)):
 
-            # Retrieve the base position and orientation at the previous step i - 1
-            # along with the base velocity from step i-1 to step i
-            prev_global_base_position = global_frame_features.base_positions[i - 1]
-            prev_global_ground_base_direction = global_frame_features.ground_base_directions[i - 1]
-            current_global_base_velocity = [global_frame_features.base_velocities[i - 1][0],
-                                            global_frame_features.base_velocities[i - 1][1]]
+            # Retrieve the base velocity from step i-1 to step i
+            current_global_base_velocity = global_frame_features.base_velocities[i - 1]
 
-            # Define the 2D local reference frame at step i-1 using the base position and orientation
-            reference_base_pos = np.asarray([prev_global_base_position[0], prev_global_base_position[1]])
-            reference_ground_base_dir = prev_global_ground_base_direction
+            # Define the 3D local reference frame at step i-1 using the base position and orientation
+            prev_base_angle = global_frame_features.base_angles[i - 1]
+            prev_base_rotation = np.linalg.inv(Rotation.from_euler('xyz', prev_base_angle).as_matrix())
 
-            # Retrieve the angle theta between the reference ground base direction and the world x axis
-            world_x_axis = np.asarray([1, 0])
-            cos_theta = np.dot(world_x_axis, reference_ground_base_dir) # unitary norm vectors
-            sin_theta = np.cross(world_x_axis, reference_ground_base_dir) # unitary norm vectors
-            theta = math.atan2(sin_theta, cos_theta)
-
-            # Retrieve the rotation from the reference ground base direction to the world frame and its inverse
-            world_R_reference_ground_base_dir = utils.rotation_2D(theta)
-            reference_ground_base_dir_R_world = np.linalg.inv(world_R_reference_ground_base_dir)
-
-            # Compute base linear velocity in the local reference frame
-            current_local_base_velocity = reference_ground_base_dir_R_world.dot(current_global_base_velocity)
+            # Calculate the local base velocity
+            current_local_base_velocity = prev_base_rotation.dot(current_global_base_velocity)
 
             # Store by components the base linear velocity in the local reference frame
-            self.base_x_velocities.append(current_local_base_velocity[0])
-            self.base_z_velocities.append(current_local_base_velocity[1])
+            self.base_velocities.append(current_local_base_velocity)
 
 
 @dataclass
@@ -300,7 +300,7 @@ class LocalWindowFeatures:
                     continue
 
                 # Store the reference base position and facing direction representing the current reference frame
-                reference_base_pos = current_global_base_positions[j][:2]
+                reference_base_pos = current_global_base_positions[j]
                 reference_facing_dir = current_global_facing_directions[j]
 
                 # Retrieve the angle between the reference facing direction and the world x axis
@@ -310,19 +310,19 @@ class LocalWindowFeatures:
                 theta = math.atan2(sin_theta, cos_theta)
 
                 # Retrieve the rotation from the facing direction to the world frame and its inverse
-                world_R_facing = utils.rotation_2D(theta)
+                world_R_facing = Rotation.from_euler('z', theta).as_matrix()
                 facing_R_world = np.linalg.inv(world_R_facing)
 
             for j in range(len(current_global_base_positions)):
 
                 # Retrieve global features
-                current_global_base_pos = current_global_base_positions[j][0:2]
+                current_global_base_pos = current_global_base_positions[j]
                 current_global_facing_dir = current_global_facing_directions[j]
-                current_global_base_vel = current_global_base_velocities[j][0:2]
+                current_global_base_vel = current_global_base_velocities[j]
 
                 # Express them locally
                 current_local_base_pos = facing_R_world.dot(current_global_base_pos - reference_base_pos)
-                current_local_facing_dir = facing_R_world.dot(current_global_facing_dir)
+                current_local_facing_dir = facing_R_world[:2,:2].dot(current_global_facing_dir)
                 current_local_base_vel = facing_R_world.dot(current_global_base_vel)
 
                 # Fill the placeholders for the local features associated to the current window
@@ -408,7 +408,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             X_i = []
 
-            # Add current local base positions (24 components)
+            # Add current local base positions (36 components)
             current_local_base_positions = []
             for local_base_position in self.local_window_features.base_positions[i - window_length_frames]:
                 current_local_base_positions.extend(local_base_position)
@@ -420,7 +420,7 @@ class FeaturesExtractor:
                 current_local_facing_directions.extend(local_facing_direction)
             X_i.extend(current_local_facing_directions)
 
-            # Add current local base velocities (24 components)
+            # Add current local base velocities (36 components)
             current_local_base_velocities = []
             for local_base_velocity in self.local_window_features.base_velocities[i - window_length_frames]:
                 current_local_base_velocities.extend(local_base_velocity)
@@ -430,6 +430,14 @@ class FeaturesExtractor:
             current_desired_velocity = [self.global_window_features.desired_velocities[i - window_length_frames]]
             X_i.extend(current_desired_velocity)
 
+            # Add previous base angle (3 components)
+            prev_base_angle = self.global_frame_features.base_angles[i - 1]
+            X_i.extend(prev_base_angle)
+
+            # Add previous base angular velocity (3 components)
+            prev_base_angular_velocity = self.global_frame_features.base_angular_velocities[i - 2]
+            X_i.extend(prev_base_angular_velocity)
+
             # Add previous joint positions (32 components)
             prev_s = self.global_frame_features.s[i - 1]
             X_i.extend(prev_s)
@@ -438,7 +446,7 @@ class FeaturesExtractor:
             prev_s_dot = self.global_frame_features.s_dot[i - 2]
             X_i.extend(prev_s_dot)
 
-            # Store current input vector (137 components)
+            # Store current input vector (167 components)
             X.append(X_i)
 
         # Debug
@@ -464,7 +472,7 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local base positions (12 components)
+            # Add future local base positions (18 components)
             next_local_base_positions = []
             for j in range(len(self.local_window_features.base_positions[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
@@ -478,12 +486,20 @@ class FeaturesExtractor:
                     next_local_facing_directions.extend(self.local_window_features.facing_directions[i - window_length_frames + 1][j])
             Y_i.extend(next_local_facing_directions)
 
-            # Add future local base velocities (12 components)
+            # Add future local base velocities (18 components)
             next_local_base_velocities = []
             for j in range(len(self.local_window_features.base_velocities[i - window_length_frames + 1])):
                 if window_indexes[j] > 0:
                     next_local_base_velocities.extend(self.local_window_features.base_velocities[i - window_length_frames + 1][j])
             Y_i.extend(next_local_base_velocities)
+
+            # Add current base orientation angle (3 components)
+            current_base_angle = self.global_frame_features.base_angles[i]
+            Y_i.extend(current_base_angle)
+
+            # Add current base angular velocity (3 components)
+            base_angular_velocities = self.global_frame_features.base_angular_velocities[i]
+            Y_i.extend(base_angular_velocities)
 
             # Add current joint positions (32 components)
             current_s = self.global_frame_features.s[i]
@@ -494,18 +510,18 @@ class FeaturesExtractor:
             Y_i.extend(current_s_dot)
 
             # Add current local base x linear velocity component (1 component)
-            current_local_base_x_velocity = [self.local_frame_features.base_x_velocities[i - 1]]
+            current_local_base_x_velocity = [self.local_frame_features.base_velocities[i - 1][0]]
             Y_i.extend(current_local_base_x_velocity)
 
             # Add current local base y linear velocity component (1 component)
-            current_local_base_z_velocity = [self.local_frame_features.base_z_velocities[i - 1]]
+            current_local_base_z_velocity = [self.local_frame_features.base_velocities[i - 1][1]]
             Y_i.extend(current_local_base_z_velocity)
 
             # Add current local base angular velocity (1 component)
             current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (103 components)
+            # Store current output vector (121 components)
             Y.append(Y_i)
 
         # Debug
