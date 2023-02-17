@@ -117,7 +117,7 @@ class GlobalFrameFeatures:
             self.base_quaternions.append(base_quaternion)
 
             # Base rotation in terms of RPY
-            base_angle = Rotation.from_matrix(base_rotation).as_euler('xyz')
+            base_angle = Rotation.from_matrix(base_rotation).as_euler('zyx')
             self.base_angles.append(base_angle)
 
             # Do not compute velocities by differentiation for the first frame
@@ -230,13 +230,13 @@ class LocalFrameFeatures:
         # Debug
         print("Computing local frame features")
 
-        # The definition of the base angular velocities is such that they coincide locally and globally
-        self.base_angular_velocities = global_frame_features.base_angular_velocities
-
         for i in range(1, len(global_frame_features.base_positions)):
 
             # Retrieve the base velocity from step i-1 to step i
             current_global_base_velocity = global_frame_features.base_velocities[i - 1]
+
+            # Retrieve the base angular velocity from step i-1 to step i
+            current_global_base_angular_velocity = global_frame_features.base_angular_velocities[i - 1]
 
             # Define the 3D local reference frame at step i-1 using the base position and orientation
             prev_base_angle = global_frame_features.base_angles[i - 1]
@@ -245,8 +245,14 @@ class LocalFrameFeatures:
             # Calculate the local base velocity
             current_local_base_velocity = prev_base_rotation.dot(current_global_base_velocity)
 
+            # Calculate the local base angular velocity
+            current_local_base_angular_velocity = prev_base_rotation.dot(current_global_base_angular_velocity)
+
             # Store by components the base linear velocity in the local reference frame
             self.base_velocities.append(current_local_base_velocity)
+            
+            # Store by components the base angular velocity in the local reference frame
+            self.base_angular_velocities.append(current_local_base_angular_velocity)
 
 
 @dataclass
