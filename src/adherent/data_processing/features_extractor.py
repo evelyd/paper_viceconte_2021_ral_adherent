@@ -523,11 +523,11 @@ class FeaturesExtractor:
             current_local_base_z_velocity = [self.local_frame_features.base_velocities[i - 1][1]]
             Y_i.extend(current_local_base_z_velocity)
 
-            # Add current local base angular velocity (1 component)
-            current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
+            # Add current local base angular velocity (3 components)
+            current_local_base_angular_velocity = self.local_frame_features.base_angular_velocities[i - 1]
             Y_i.extend(current_local_base_angular_velocity)
 
-            # Store current output vector (121 components)
+            # Store current output vector (123 components)
             Y.append(Y_i)
 
         # Debug
