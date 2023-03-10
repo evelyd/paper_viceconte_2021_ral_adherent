@@ -9,9 +9,8 @@ from typing import List
 from scenario import core
 from scenario import gazebo as scenario
 from gym_ignition.rbd.idyntree.inverse_kinematics_nlp import IKSolution
-from gym_ignition.rbd.idyntree import kindyncomputations
 from gym_ignition.rbd.conversions import Quaternion
-
+from mpl_toolkits.mplot3d import Axes3D
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -211,361 +210,185 @@ def visualize_retargeted_motion(timestamps: List,
     print("Visualization ended")
     time.sleep(1)
 
-def visualize_candidate_features(ik_solutions: List,
-                            icub: iCub,
-                            kindyn: kindyncomputations.KinDynComputations,
-                            world: scenario.World,
-                            controlled_joints: List,
-                            gazebo: scenario.GazeboSimulator) -> None:
+def visualize_base_position_and_orientation(timestamps: List,
+                                ik_solutions: List,
+                                icub: iCub,
+                                controlled_joints: List,
+                                gazebo: scenario.GazeboSimulator) -> None:
+    """Auxiliary function to visualize retargeted base positions and orientations."""
 
-    print(len(ik_solutions))
+    base_positions_x = []
+    base_positions_y = []
+    base_positions_z = []
+    base_positions = []
+    base_R_worlds = []
+
+    base_velocities_x = []
+    base_velocities_y = []
+    base_velocities_z = []
+
+    base_quaternions = []
+
+    base_ang_velocities_x = []
+    base_ang_velocities_y = []
+    base_ang_velocities_z = []
+
+    plt.ion()
+
+    timestamp_prev = -1
 
     dt_mean = 1/50
-    frontal_base_dir = define_frontal_base_direction(robot="iCubV2_5")
 
-    base_heights = np.empty(len(ik_solutions)-1)
-    comxs = np.empty(len(ik_solutions)-1)
-    comzs = np.empty(len(ik_solutions)-1)
-    head_xs = np.empty(len(ik_solutions)-1)
-    head_zs = np.empty(len(ik_solutions)-1)
-    xz_base_directions = []
-    xz_base_directions.append([0.,0.])
-    cumulative_pitch = np.empty(len(ik_solutions))
-    cumulative_pitch[0] = 0.0
-    cumulative_yaw = np.empty(len(ik_solutions))
-    cumulative_yaw[0] = 0.0
-    ground_base_directions = []
-    ground_base_directions.append([0.,0.])
-    for i in range(1,len(ik_solutions)):
-        # =================
-        # BASE HEIGHTS
-        # =================
+    for i in range(1, len(ik_solutions), 2):
+        print("iteration ", i, " out of ", len(ik_solutions))
+
         ik_solution = ik_solutions[i]
-        print(i)
 
-        # Retrieve the base pose and the joint positions
-        base_position = np.asarray(ik_solution["base_position"])
-        base_heights[i-1] = base_position[2]
-
-        # =================
-        # COM POSITIONS
-        # =================
-
-        # Retrieve the base pose and the joint positions
-        joint_positions = np.asarray(ik_solution["joint_positions"])
-        base_quaternion = np.asarray(ik_solution["base_quaternion"])
+        # Retrieve the base pose and the joint positions, based on the type of ik_solution
+        if type(ik_solution) == IKSolution:
+            joint_positions = ik_solution.joint_configuration
+            base_position = ik_solution.base_position
+            base_quaternion = ik_solution.base_quaternion
+        elif type(ik_solution) == dict:
+            joint_positions = ik_solution["joint_positions"]
+            base_position = ik_solution["base_position"]
+            base_quaternion = ik_solution["base_quaternion"]
 
         # Reset the base pose and the joint positions
         icub.to_gazebo().reset_base_pose(base_position, base_quaternion)
         icub.to_gazebo().reset_joint_positions(joint_positions, controlled_joints)
         gazebo.run(paused=True)
-        #go through and get com for each step
-        kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravity()))
-        com = kindyn.get_com_position()
-        comzs[i-1] = com[2]
-        
-        #get CoM x in local base frame
-        # Get ground rotation from world to base frame
-        world_H_base = kindyn.get_world_base_transform()
-        # Retrieve the rotation from the facing direction to the world frame and its inverse
-        # Express CoM x,y locally
-        T_world_to_base = np.linalg.inv(world_H_base)
-        current_local_com_pos = T_world_to_base.dot([com[0],com[1],com[2],1])
-        comxs[i-1] = current_local_com_pos[0]
-        
-        # =================
-        # HEAD POSITIONS
-        # =================
-        # Compute head height wrt the world frame
-        base_H_head = kindyn.get_relative_transform(ref_frame_name="root_link", frame_name="head")
-        W_H_head = world_H_base.dot(base_H_head)
-        W_head_ht = W_H_head[2, -1]
-        head_zs[i-1] = W_head_ht
 
-        #Compute head x in local base frame
-        current_local_head_pos = T_world_to_base.dot([W_H_head[0, -1],W_H_head[1, -1],W_H_head[2, -1],1])
-        head_xs[i-1] = current_local_head_pos[0]
+        # Collect base positions
+        base_positions_x.append(base_position[0])
+        base_positions_y.append(base_position[1])
+        base_positions_z.append(base_position[2])
+        base_positions.append(np.asarray(base_position))
 
-        # =================
-        # BASE PITCH VELOCITIES
-        # =================
-        # xz plane base direction
+        #Collect the base orientations
         base_rotation = Quaternion.to_rotation(np.array(base_quaternion))
-        base_direction = base_rotation.dot(frontal_base_dir) # we are interested in the frontal base direction
-        xz_base_direction = [base_direction[0], base_direction[2]] # project on the xz plane
-        xz_base_direction = xz_base_direction / np.linalg.norm(xz_base_direction) # of unitary norm
-        xz_base_directions.append(xz_base_direction)
+        base_R_world = np.linalg.inv(base_rotation)
+        base_R_worlds.append(base_R_world)
 
-        # Base pitch angular velocities by differentiation of xz base directions
-        xz_base_direction_prev = xz_base_directions[-2]
-        cos_phi = np.dot(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
-        sin_phi = np.cross(xz_base_direction_prev, xz_base_direction) # unitary norm vectors
-        phi = math.atan2(sin_phi, cos_phi)
-        cumulative_pitch[i] = cumulative_pitch[i-1] + phi
-        # xz_base_angular_velocity = phi / dt_mean
-        # pitch_vels[i-1] = xz_base_angular_velocity
+        base_quaternions.append(np.asarray(base_quaternion))
 
-        # =================
-        # BASE YAW VELOCITIES
-        # =================
-        # ground plane base direction
-        ground_base_direction = [base_direction[0], base_direction[1]] # project on the ground plane
-        ground_base_direction = ground_base_direction / np.linalg.norm(ground_base_direction) # of unitary norm
-        ground_base_directions.append(ground_base_direction)
+        # Do not compute velocities by differentiation for the first frame
+        if i == 1:
+            continue
 
-        # Base yaw angular velocities by differentiation of ground base directions
-        ground_base_direction_prev = ground_base_directions[-2]
-        cos_theta = np.dot(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
-        sin_theta = np.cross(ground_base_direction_prev, ground_base_direction) # unitary norm vectors
-        theta = math.atan2(sin_theta, cos_theta)
-        cumulative_yaw[i] = cumulative_yaw[i-1] + theta
-        # ground_base_angular_velocity = theta / dt_mean
-        # yaw_vels[i-1] = ground_base_angular_velocity
+        # Global base velocities by differentiation of base positions
+        base_position_prev = base_positions[-2]
+        base_velocity = (base_position - base_position_prev) / dt_mean
 
-    #make plots larger
-    plt.rcParams['figure.figsize'] = [16,10]
+        # Get local base velocities (local base frame)
+        base_rotation = Quaternion.to_rotation(np.array(base_quaternion))
+        base_R_world = np.linalg.inv(base_rotation)
+        local_base_velocity = base_R_world.dot(base_velocity)
 
-    # Figure 1 for base heights
-    plt.figure(1)
+        base_velocities_x.append(local_base_velocity[0])
+        base_velocities_y.append(local_base_velocity[1])
+        base_velocities_z.append(local_base_velocity[2])
+
+        # Global base angular velocities by differentiation of base quaternion
+        base_quaternion_prev = base_quaternions[-2]
+        base_quaternion_derivative = (base_quaternion - base_quaternion_prev) / dt_mean
+        E = np.array([[-base_quaternion[1], base_quaternion[0], -base_quaternion[3], base_quaternion[2]],
+                        [-base_quaternion[2], base_quaternion[3], base_quaternion[0], -base_quaternion[1]],
+                        [-base_quaternion[3], -base_quaternion[2], base_quaternion[1], base_quaternion[0]]])
+        base_angular_velocity = 2 * E.dot(base_quaternion_derivative)
+        local_base_angular_velocity = base_R_world.dot(base_angular_velocity)
+
+        base_ang_velocities_x.append(local_base_angular_velocity[0])
+        base_ang_velocities_y.append(local_base_angular_velocity[1])
+        base_ang_velocities_z.append(local_base_angular_velocity[2])
+
+        # Figure 1 for the base positions/orientations
+        fig = plt.figure(1)
+        plt.clf()
+        ax = fig.add_subplot(projection='3d')
+
+        # Plot the base positions and orientations
+        plot_ref_frames(base_positions[-50:], base_R_worlds[-50:], ax)
+        ax.set_xlabel('x (m)')
+        ax.set_ylabel('y (m)')
+        ax.set_zlabel('z (m)')
+        half_window_size = 0.1
+        ax.set_xlim(np.mean(base_positions_x[-50:]) - half_window_size, np.mean(base_positions_x[-50:]) + half_window_size)
+        ax.set_ylim(np.mean(base_positions_y[-50:]) - half_window_size, np.mean(base_positions_y[-50:]) + half_window_size)
+        ax.set_zlim(np.mean(base_positions_z[-50:]) - half_window_size, np.mean(base_positions_z[-50:]) + half_window_size)
+        plt.title('Base positions and orientations')
+        # ax.view_init(5, 0)
+
+        # Plot
+        plt.show()
+        plt.pause(0.0001)
+        fig.savefig('base_pos_orient_crouching.pdf')
+
+    # Figure 2 for the base linear velocities
+    fig = plt.figure(2)
     plt.clf()
+    ax = fig.add_subplot()
 
-    #Plot base heights
-    plt.plot(range(1,len(ik_solutions)), base_heights, c='k', label='Base height')
-    #Plot standing points (D4 portion 19, mixed walking)
-    # xcoords = [1,770,2200,3300,6300,10700,11600,14100,16700,17900,19600,20200,23000,24400,27000,28100,30300,32400]
-    #Plot standing points (D4 portion 12, forward walking)
-    xcoords = [1,600,1600,2100,3100,4200,5900,6200,6500,9000,10000,10900,12100,15000,16200,16800,18700,19600,20400,21100,22700,23300,23800,24400,25400]
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
+    tt = dt_mean * np.asarray(range(1, i, 2))
+    # Plot the base linear velocities over time
+    ax.plot(tt, base_velocities_x, 'r', tt, base_velocities_y, 'g', tt, base_velocities_z, 'b')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Linear velocity (m/s)')
+    plt.title('Local base linear velocities')
+    plt.grid('on')
+    ax.legend(['x', 'y', 'z'])
 
-    plt.grid()
-    plt.title('Base heights for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Global base height (m)')
-    plt.legend()
-    plt.savefig('base_heights_D4_12.png')
+    # Plot
+    # plt.show()
+    plt.pause(0.0001)
+    fig.savefig('local_base_lin_vels_crouching.png')
 
-    # Figure 2 for CoM x position (local)
-    plt.figure(2)
+    # Figure 3 for the base angular velocities
+    fig = plt.figure(3)
     plt.clf()
+    ax = fig.add_subplot()
 
-    #Plot CoM x
-    plt.plot(range(1,len(ik_solutions)), comxs, c='k', label='CoM x')
-
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('CoM x for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Local (measured from base) CoM x (m)')
-    plt.legend()    
-    plt.savefig('com_x_D4_12.png')
-
-    # Figure 3 for CoM z position
-    plt.figure(3)
-    plt.clf()
-
-    #Plot CoM z
-    plt.plot(range(1,len(ik_solutions)), comzs, c='k', label='CoM z')
-    #Plot standing points (D4 portion 12, mixed walking)
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('CoM z for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Global CoM z (m)')
-    plt.legend()
-    plt.savefig('com_z_D4_12.png')
-
-    # Figure 4 for head x
-    plt.figure(4)
-    plt.clf()
-
-    #Plot head x
-    plt.plot(range(1,len(ik_solutions)), head_xs, c='k', label='Head x')
-
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('Head x for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Local (measured from base) head x (m)')
-    plt.legend()
-    plt.savefig('head_x_D4_12.png')
-
-    # Figure 5 for head z
-    plt.figure(5)
-    plt.clf()
-
-    #Plot head z
-    plt.plot(range(1,len(ik_solutions)), head_zs, c='k', label='Head z')
-
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('Head z for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Global head z (m)')
-    plt.legend()
-    plt.savefig('head_z_D4_12.png')
-
-    # Figure 6 for base pitch
-    plt.figure(6)
-    plt.clf()
-
-    #Plot base pitch
-    plt.plot(range(1,len(ik_solutions)+1), cumulative_pitch, c='k', label='Cumulative base pitch')
-
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('Cumulative base pitch for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Base pitch (rad))')
-    plt.legend()
-    plt.savefig('cumulative_base_pitch_D4_12.png')
-
-    # Figure 7 for base yaw
-    plt.figure(7)
-    plt.clf()
-
-    #Plot base yaw
-    plt.plot(range(1,len(ik_solutions)+1), cumulative_yaw, c='k', label='Cumulative base yaw')
-
-    for xc in xcoords:
-        if xc == 1:
-            plt.axvline(x=xc, linestyle='--', label='Standing points')
-        else:
-            plt.axvline(x=xc, linestyle='--')
-
-    plt.grid()
-    plt.title('Cumulative base yaw for mixed walking (D4 portion 12)')
-    plt.xlabel('Timestep')
-    plt.ylabel('Base yaw (rad)')
-    plt.legend()
-    plt.savefig('cumulative_base_yaw_D4_12.png')
-
-    # #Figure 8 for comparisons of transitions between crouching and walking upright
-    # plt.figure(8)
-    # plt.clf()
-
-    # #create subplots where x and z plots are next to each other
-    # xcoords = [700,800,850,925]
-    # plt.subplot(2,4,1)
-    # plt.plot(range(400,1000), head_xs[400:1000], c='k', label='Head x')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.ylabel('Global head x (m)')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-    # plt.subplot(2,4,5)
-    # plt.plot(range(400,1000), head_zs[400:1000], c='b', label='Head z')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xlabel('Timestep')
-    # plt.ylabel('Global head z (m)')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-
-    # xcoords = [6200,6270,6350,6425]
-    # plt.subplot(2,4,2)
-    # plt.plot(range(6000,6600), head_xs[6000:6600], c='k', label='Head x')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-    # plt.subplot(2,4,6)
-    # plt.plot(range(6000,6600), head_zs[6000:6600], c='b', label='Head z')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xlabel('Timestep')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-
-    # xcoords = [23000,23075,23150,23225]
-    # plt.subplot(2,4,3)
-    # plt.plot(range(22700,23300), head_xs[22700:23300], c='k', label='Head x')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-    # plt.subplot(2,4,7)
-    # plt.plot(range(22700,23300), head_zs[22700:23300], c='b', label='Head z')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xlabel('Timestep')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-
-    # xcoords = [28070,28150,28200,28300]
-    # plt.subplot(2,4,4)
-    # plt.plot(range(27800,28400), head_xs[27800:28400], c='k', label='Head x')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-    # plt.subplot(2,4,8)
-    # plt.plot(range(27800,28400), head_zs[27800:28400], c='b', label='Head z')
-    # for xc in xcoords:
-    #     if xc == 1:
-    #         plt.axvline(x=xc, linestyle='--', label='Transition bounds')
-    #     else:
-    #         plt.axvline(x=xc, linestyle='--')
-    # plt.xlabel('Timestep')
-    # plt.xticks(rotation = 45)
-    # plt.grid()
-
-    # plt.suptitle('Head x,z transitions for mixed walking (D4 portion 19)')
-
-    # plt.savefig('head_transitions_D4_19.png')
+    # Plot the base angular velocities over time
+    ax.plot(tt, base_ang_velocities_x, 'r', tt, base_ang_velocities_y, 'g', tt, base_ang_velocities_z, 'b')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Angular velocity (rad/s)')
+    plt.title('Local base angular velocities')
+    plt.grid('on')
+    ax.legend(['roll', 'pitch', 'yaw'])
 
     # Plot
     plt.show()
     plt.pause(0.0001)
+    fig.savefig('local_base_ang_vels_crouching.png')
+
+    # Visualize the retargeted motion at the time rate of the collected data
+    timestamp = timestamps[i]
+    if timestamp_prev == -1:
+        dt = 1 / 100
+    else:
+        dt = timestamp - timestamp_prev
+    time.sleep(dt)
+    timestamp_prev = timestamp
+
+    print("Visualization ended")
+    time.sleep(1)
+
+def plot_ref_frames(base_positions, base_R_worlds, ax) -> None:
+    """Plot the past 10 base positions and orientations"""
+
+    #so here what we do is we receive the last 10 base positions/orientations,and we want to plot each of them
+    # so get the length of them and plot all at once, this is without canvas.draw() because that would erase each time right?
+
+    for i in range(0,len(base_positions)):
+        origin = base_positions[i]
+        unit_len = 0.05
+        xhat = base_R_worlds[i].dot(np.array([unit_len,0,0])) + origin
+        yhat = base_R_worlds[i].dot(np.array([0,unit_len,0])) + origin
+        zhat = base_R_worlds[i].dot(np.array([0,0,unit_len])) + origin
+
+        ax.plot([origin[0], xhat[0]],[origin[1], xhat[1]],[origin[2], xhat[2]], 'r')
+        ax.plot([origin[0], yhat[0]],[origin[1], yhat[1]],[origin[2], yhat[2]], 'g')
+        ax.plot([origin[0], zhat[0]],[origin[1], zhat[1]],[origin[2], zhat[2]], 'b')
 
 def visualize_global_features(global_window_features,
                               ik_solutions: List,

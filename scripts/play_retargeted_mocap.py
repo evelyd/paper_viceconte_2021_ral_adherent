@@ -62,18 +62,10 @@ else:
                              9:"9_diagonal_small_step",10:"10_mixed_small_step",11:"11_mixed_normal_and_small_step"}
         limits = {6: [1500, 28500], 7: [1750, 34000], 8: [2900, 36450], 9: [1250, 17050], 10: [1450, 78420], 11: [1600, 61350]}
     elif dataset == "D4":
-        #the good backward step is 14, since it is longer (the first one we realized the thigh sensor had fallen at the end)
-        #both 18 and 19 are mixed walking, and both are good (combined it's about 15 min of data), just the end of the first 
-        # one is invalid because the thigh sensor fell
-        #in 18, starting at around -15000, the right leg seems to be dragging behind the left. this may have been when the 
-        # right thigh sensor started to fall
-
         retargeted_mocaps = {12:"12_forward_crouching_normal_step",13:"13_backward_crouching_normal_step",
-                             14:"14_backward_crouching_normal_step",15:"15_left_crouching_normal_step",
-                             16:"16_right_crouching_normal_step",17:"17_diagonal_crouching_normal_step",
-                             18:"18_mixed_crouching_normal_step",19:"19_mixed_crouching_normal_step"}
-        limits = {12: [1500, 29050], 13: [750, -340], 14: [580, -350], 15: [650, -175], 16: [650, -400], 17: [700, -450], 
-                  18: [600, -15000], 19: [975, -250]}
+                             14:"14_left_and_right_crouching_normal_step",15:"15_diagonal_crouching_normal_step",
+                             16:"16_mixed_crouching_normal_step"}
+        limits = {12: [500, -500], 13: [300, -625], 14: [600, -250], 15: [400, -300], 16: [28000, -300]}
     initial_frame = limits[retargeted_mocap_index][0]
     final_frame = limits[retargeted_mocap_index][1]
 
@@ -117,5 +109,7 @@ gazebo.run(paused=True)
 # ===============================
 
 input("Press Enter to start the visualization of the retargeted motion")
-utils.visualize_retargeted_motion(timestamps=timestamps, ik_solutions=ik_solutions, icub=icub,
+utils.visualize_base_position_and_orientation(timestamps=timestamps, ik_solutions=ik_solutions, icub=icub,
                                   controlled_joints=controlled_joints, gazebo=gazebo)
+# utils.visualize_retargeted_motion(timestamps=timestamps, ik_solutions=ik_solutions, icub=icub,
+                                #   controlled_joints=controlled_joints, gazebo=gazebo)
