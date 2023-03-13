@@ -335,17 +335,17 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local base velocities (18 components)
+            # Add future local base velocities (21 components)
             next_local_base_velocities = []
             for j in range(len(self.local_window_features.base_velocities[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
+                if window_indexes[j] >= 0:
                     next_local_base_velocities.extend(self.local_window_features.base_velocities[i - window_length_frames + 1][j])
             Y_i.extend(next_local_base_velocities)
 
-            # Add future local base angular velocities (18 components)
+            # Add future local base angular velocities (21 components)
             next_local_base_angular_velocities = []
             for j in range(len(self.local_window_features.base_angular_velocities[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
+                if window_indexes[j] >= 0:
                     next_local_base_angular_velocities.extend(self.local_window_features.base_angular_velocities[i - window_length_frames + 1][j])
             Y_i.extend(next_local_base_angular_velocities)
 
@@ -357,7 +357,7 @@ class FeaturesExtractor:
             current_s_dot = self.global_frame_features.s_dot[i - 1]
             Y_i.extend(current_s_dot)
 
-            # Store current output vector (100 components)
+            # Store current output vector (106 components)
             Y.append(Y_i)
 
         # Debug
