@@ -469,26 +469,19 @@ class FeaturesExtractor:
             # Initialize current input vector
             Y_i = []
 
-            # Add future local base positions (12 components)
-            next_local_base_positions = []
-            for j in range(len(self.local_window_features.base_positions[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
-                    next_local_base_positions.extend(self.local_window_features.base_positions[i - window_length_frames + 1][j])
-            Y_i.extend(next_local_base_positions)
-
-            # Add future local facing directions (12 components)
-            next_local_facing_directions = []
-            for j in range(len(self.local_window_features.facing_directions[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
-                    next_local_facing_directions.extend(self.local_window_features.facing_directions[i - window_length_frames + 1][j])
-            Y_i.extend(next_local_facing_directions)
-
-            # Add future local base velocities (12 components)
+            # Add future local base velocities (21 components)
             next_local_base_velocities = []
             for j in range(len(self.local_window_features.base_velocities[i - window_length_frames + 1])):
-                if window_indexes[j] > 0:
+                if window_indexes[j] >= 0:
                     next_local_base_velocities.extend(self.local_window_features.base_velocities[i - window_length_frames + 1][j])
             Y_i.extend(next_local_base_velocities)
+
+            # Add future local base angular velocities (21 components)
+            next_local_base_angular_velocities = []
+            for j in range(len(self.local_window_features.base_angular_velocities[i - window_length_frames + 1])):
+                if window_indexes[j] >= 0:
+                    next_local_base_angular_velocities.extend(self.local_window_features.base_angular_velocities[i - window_length_frames + 1][j])
+            Y_i.extend(next_local_base_angular_velocities)
 
             # Add current joint positions (32 components)
             current_s = self.global_frame_features.s[i]
@@ -498,19 +491,7 @@ class FeaturesExtractor:
             current_s_dot = self.global_frame_features.s_dot[i - 1]
             Y_i.extend(current_s_dot)
 
-            # Add current local base x linear velocity component (1 component)
-            current_local_base_x_velocity = [self.local_frame_features.base_x_velocities[i - 1]]
-            Y_i.extend(current_local_base_x_velocity)
-
-            # Add current local base y linear velocity component (1 component)
-            current_local_base_z_velocity = [self.local_frame_features.base_z_velocities[i - 1]]
-            Y_i.extend(current_local_base_z_velocity)
-
-            # Add current local base angular velocity (1 component)
-            current_local_base_angular_velocity = [self.local_frame_features.base_angular_velocities[i - 1]]
-            Y_i.extend(current_local_base_angular_velocity)
-
-            # Store current output vector (103 components)
+            # Store current output vector (106 components)
             Y.append(Y_i)
 
         # Debug
