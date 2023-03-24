@@ -1648,7 +1648,7 @@ class TrajectoryGenerator:
         # Extract the new base orientation from the output
         base_angle_change = base_angular_velocity * self.generation_rate
         new_base_angle = self.autoregression.current_base_angle + base_angle_change
-        new_base_rotation = Rotation.from_euler('xyz', new_base_angle)
+        new_base_rotation = Rotation.from_euler('xyz', [0, 0, new_base_angle[2]])
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
 
         # Update the base orientation and the joint positions in the robot configuration
