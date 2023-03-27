@@ -17,10 +17,8 @@ from gym_ignition.rbd.idyntree import kindyncomputations
 from adherent.data_processing.utils import define_foot_vertices
 from adherent.trajectory_generation import trajectory_generator
 from adherent.trajectory_generation.utils import define_initial_nn_X
-from adherent.trajectory_generation.utils import define_initial_base_yaw
-from adherent.data_processing.utils import define_frontal_base_direction
-from adherent.data_processing.utils import define_frontal_chest_direction
-from adherent.trajectory_generation.utils import define_initial_past_trajectory
+from adherent.trajectory_generation.utils import define_initial_base_angle
+from adherent.trajectory_generation.utils import define_initial_base_height
 from adherent.trajectory_generation.utils import define_initial_past_trajectory
 
 import matplotlib as mpl
@@ -68,11 +66,9 @@ p_in.open("/joystick_in")
 yarp.Network.connect("/joystick_out", p_in.getName())
 
 # Initialization of the joystick raw and processed inputs received through YARP ports
-raw_data = [] # motion and facing directions
-base_heights = []
-quad_bezier = []
+raw_data = []
 base_velocities = []
-facing_dirs = []
+base_angular_velocities = []
 
 # ===============
 # MODEL INSERTION
@@ -89,7 +85,7 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 icub_urdf = os.path.join(script_directory, "../src/adherent/model/iCubGazeboSimpleCollisionsV2_5_xsens/iCubGazeboSimpleCollisionsV2_5_xsens.urdf")
 
 # Insert the robot in the empty world
-initial_base_height = 0.0
+initial_base_height = define_initial_base_height(robot="iCubV2_5")
 icub = iCub(world=world, urdf=icub_urdf, position=[0, 0, initial_base_height])
 
 # Show the GUI
@@ -106,11 +102,10 @@ kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravi
 # ==================
 
 # Define the indexes of the figures for plotting
-figure_base_heights = 1
-figure_facing_dirs = 2
-figure_base_vel = 3
-figure_blending_coefficients = 4
-figure_footsteps = 5
+figure_base_vel = 1
+figure_base_ang_vel = 2
+figure_blending_coefficients = 3
+figure_footsteps = 4
 plt.ion()
 
 # ====================
@@ -128,15 +123,11 @@ local_foot_vertices_pos = define_foot_vertices(robot="iCubV2_5")
 initial_nn_X = define_initial_nn_X(robot="iCubV2_5")
 
 # Define robot-specific initial past trajectory features
-initial_past_trajectory_base_pos, initial_past_trajectory_facing_dirs, initial_past_trajectory_base_vel = \
+initial_past_trajectory_base_vel, initial_past_trajectory_base_ang_vel = \
     define_initial_past_trajectory(robot="iCubV2_5")
 
 # Define robot-specific initial base yaw angle
-initial_base_yaw = define_initial_base_yaw(robot="iCubV2_5")
-
-# Define robot-specific frontal base and chest directions
-frontal_base_dir = define_frontal_base_direction(robot="iCubV2_5")
-frontal_chest_dir = define_frontal_chest_direction(robot="iCubV2_5")
+initial_base_angle = define_initial_base_angle(robot="iCubV2_5")
 
 # Instantiate the trajectory generator
 generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gazebo, kindyn=kindyn,
@@ -144,13 +135,10 @@ generator = trajectory_generator.TrajectoryGenerator.build(icub=icub, gazebo=gaz
                                                            training_path=os.path.join(script_directory, training_path),
                                                            local_foot_vertices_pos=local_foot_vertices_pos,
                                                            initial_nn_X=initial_nn_X,
-                                                           initial_past_trajectory_base_pos=initial_past_trajectory_base_pos,
-                                                           initial_past_trajectory_facing_dirs=initial_past_trajectory_facing_dirs,
                                                            initial_past_trajectory_base_vel=initial_past_trajectory_base_vel,
+                                                           initial_past_trajectory_base_ang_vel=initial_past_trajectory_base_ang_vel,
                                                            initial_base_height=initial_base_height,
-                                                           initial_base_yaw=initial_base_yaw,
-                                                           frontal_base_direction=frontal_base_dir,
-                                                           frontal_chest_direction=frontal_chest_dir)
+                                                           initial_base_angle=initial_base_angle)
 
 # =========
 # MAIN LOOP
@@ -189,28 +177,24 @@ with tf.Session(config=config) as sess:
 
         # Compute kinematically-feasible base position and updated posturals
         new_base_postural, new_joints_postural, new_links_postural, new_com_postural = \
-            generator.compute_kinematically_fasible_base_and_update_posturals(joint_positions=joint_positions,
+            generator.compute_kinematically_feasible_base_and_update_posturals(joint_positions=joint_positions,
                                                                               base_quaternion=new_base_quaternion,
                                                                               controlled_joints=controlled_joints,
                                                                               link_names=icub.link_names())
 
         # Retrieve user input data from YARP port
-        base_heights, quad_bezier, base_velocities, facing_dirs, raw_data = \
+        base_velocities, base_angular_velocities, raw_data = \
             generator.retrieve_joystick_inputs(input_port=p_in,
-                                               base_heights=base_heights,
-                                               quad_bezier=quad_bezier,
                                                base_velocities=base_velocities,
-                                               facing_dirs=facing_dirs,
+                                               base_angular_velocities=base_angular_velocities,
                                                raw_data=raw_data)
 
         # Use in an autoregressive fashion the network output and blend it with the user input
-        blended_base_positions, blended_facing_dirs, blended_base_velocities = \
+        blended_base_velocities, blended_base_angular_velocities = \
             generator.autoregression_and_blending(current_output=current_output,
                                                   denormalized_current_output=denormalized_current_output,
-                                                  base_heights=base_heights,
-                                                  quad_bezier=quad_bezier,
-                                                  facing_dirs=facing_dirs,
-                                                  base_velocities=base_velocities)
+                                                  base_velocities=base_velocities,
+                                                  base_angular_velocities=base_angular_velocities)
 
         # Update storage and periodically save data
         generator.update_storages_and_save(blending_coefficients=current_blending_coefficients,
@@ -219,24 +203,19 @@ with tf.Session(config=config) as sess:
                                            links_postural=new_links_postural,
                                            com_postural=new_com_postural,
                                            raw_data=raw_data,
-                                           base_heights=base_heights,
-                                           quad_bezier=quad_bezier,
                                            base_velocities=base_velocities,
-                                           facing_dirs=facing_dirs,
+                                           base_angular_velocities=base_angular_velocities,
                                            save_every_N_iterations=save_every_N_iterations)
 
         if plot_trajectory_blending:
             # Plot the trajectory blending
-            generator.plotter.plot_trajectory_blending(figure_base_heights=figure_base_heights,
-                                                       figure_facing_dirs=figure_facing_dirs,
-                                                       figure_base_vel=figure_base_vel,
+            generator.plotter.plot_trajectory_blending(figure_base_vel=figure_base_vel,
+                                                       figure_base_ang_vel=figure_base_ang_vel,
                                                        denormalized_current_output=denormalized_current_output,
-                                                       base_heights=base_heights,
-                                                       quad_bezier=quad_bezier, facing_dirs=facing_dirs,
                                                        base_velocities=base_velocities,
-                                                       blended_base_positions=blended_base_positions,
-                                                       blended_facing_dirs=blended_facing_dirs,
-                                                       blended_base_velocities=blended_base_velocities)
+                                                       base_angular_velocities=base_angular_velocities,
+                                                       blended_base_velocities=blended_base_velocities,
+                                                       blended_base_angular_velocities=blended_base_angular_velocities)
 
         if plot_blending_coefficients:
 

@@ -34,9 +34,8 @@ p_out = yarp.BufferedPortBottle()
 p_out.open("/joystick_out")
 
 # Initialize data sent through YARP
-quad_bezier = []
 base_velocities = []
-facing_dirs = []
+base_angular_velocities = []
 
 # ==================
 # PLOT CONFIGURATION
@@ -61,36 +60,30 @@ joystick = joystick_device.JoystickDataProcessor.build(device_path='/dev/input/j
 
 while True:
 
-    # At every cycle, read data from the joystick: crouch status, motion and facing dirs
-    joystick_inputs = joystick.retrieve_current_feature_values()
+    # At every cycle, read data from the joystick
+    joystick_inputs = joystick.retrieve_motion_and_base_directions()
 
     # Every plot_rate cycle, process and send data before plotting
     if plot_i % plot_rate == 0:
 
         # Process the joystick data
-        base_heights, quad_bezier, base_velocities, facing_dirs = joystick.process_joystick_inputs()
+        quad_bezier, base_velocities, base_dirs, base_angular_velocities = joystick.process_joystick_inputs()
 
         # Send data to the trajectory generator through the YARP port
         joystick.send_data(output_port=p_out,
-                           base_heights=base_heights,
-                           quad_bezier=quad_bezier,
                            base_velocities=base_velocities,
-                           facing_dirs=facing_dirs,
+                           base_angular_velocities=base_angular_velocities,
                            joystick_inputs=joystick_inputs)
-
-
-        # Plot the base height over time
-        joystick.plot_base_heights(base_heights=base_heights)
 
         # Plot the motion direction
         joystick.plot_motion_direction()
 
-        # Plot the facing direction
-        joystick.plot_facing_direction()
+        # Plot the base direction
+        joystick.plot_base_direction()
 
-        # Plot the Bezier curve for the facing directions
+        # Plot the Bezier curve for the base directions
         if plot_bezier:
-            joystick.plot_facing_Bezier(quad_bezier=quad_bezier, facing_dirs=facing_dirs)
+            joystick.plot_base_Bezier(quad_bezier=quad_bezier, base_dirs=base_dirs)
 
         # Plot
         plt.show()

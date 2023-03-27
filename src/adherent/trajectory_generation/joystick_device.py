@@ -14,7 +14,6 @@ from typing import List, Dict, BinaryIO
 from dataclasses import dataclass, field
 from adherent.trajectory_generation.utils import quadratic_bezier
 from adherent.trajectory_generation.utils import compute_angle_wrt_x_positive_semiaxis
-from adherent.trajectory_generation.utils import define_initial_base_height
 
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
@@ -151,7 +150,7 @@ class JoystickDevice:
 
     def update_joystick_state(self) -> None:
         """Update the axis and button states when more recent data from the joystick is available. In particular,
-        store the binary value of the a button and the (x,y) axis values from the left analog and the (z,rz) axis values from the right analog."""
+        store the (x,y) axis values from the left analog and the (z,rz) axis values from the right analog."""
 
         # Wait for an event to read
         evbuf = self.jsdev.read(8)
@@ -165,24 +164,13 @@ class JoystickDevice:
             if kind & 0x02: #if the data received was axis data
                 axis = self.axis_map[number]
 
-                # Filter on the axes of interest: (x,y) for the motion direction, (z,rz) for the facing direction
+                # Filter on the axes of interest: (x,y) for the motion direction, (z,rz) for the base direction
                 if axis not in ["x","y","z","rz"]:
                     return
 
                 # Update the axis state
                 fvalue = value / 32767.0
                 self.axis_states[axis] = fvalue
-
-            if kind & 0x01: #if the data received was button data
-                button = self.button_map[number]
-
-                # Filter on the button of interest: a
-                if button != 'a':
-                    return
-
-                # Update the button state
-                self.button_states[button] = value #this is a bool
-
 
 
 @dataclass
@@ -193,6 +181,7 @@ class JoystickDataProcessor:
 
     # Predefined norm for the base velocities
     base_vel_norm: float
+    base_ang_vel_norm: float
 
     # Axis of the composed ellipsoid constraining the last point of the Bezier curve of base positions
     ellipsoid_forward_axis: float
@@ -205,38 +194,35 @@ class JoystickDataProcessor:
     # Offset for the control point of the Bezier curve
     control_point_offset: float
 
-    # Maximum local variation angles for the facing directions, different according to the type of walking
-    max_facing_direction_angle_forward: float # forward walking
-    max_facing_direction_angle_backward: float # backward walking
-    max_facing_direction_angle_side_opposite_sign: float # side walking (motion and facing directions with opposite sign)
-    max_facing_direction_angle_side_same_sign: float # side walking (motion and facing directions with same sign)
+    # Maximum local variation angles for the base directions, different according to the type of walking
+    max_base_direction_angle_forward: float # forward walking
+    max_base_direction_angle_backward: float # backward walking
+    max_base_direction_angle_side_opposite_sign: float # side walking (motion and base directions with opposite sign)
+    max_base_direction_angle_side_same_sign: float # side walking (motion and base directions with same sign)
 
     # Number of points constituting the Bezier curve
     t: List = np.linspace(0, 1, 7)
-
-    # Crouch status: 'a' button data <-> a
-    curr_crouch_status: bool = False
-    a_pressed: bool = False
 
     # Motion direction: left analog data <-> (x,y)
     curr_x: float = 0
     curr_y: float = -1
 
-    # Facing direction: right analog data <-> (z,rz)
+    # Base direction: right analog data <-> (z,rz)
     curr_z: float = 0
     curr_rz: float = -1
 
     @staticmethod
     def build(device_path: str,
               base_vel_norm: float = 0.4,
+              base_ang_vel_norm: float = 0.4,
               ellipsoid_forward_axis: float = 1.0,
               ellipsoid_side_axis: float = 0.9,
               ellipsoid_backward_axis: float = 0.6,
               ellipsoid_scaling: float = 0.4,
-              max_facing_direction_angle_forward: float = math.pi/9,
-              max_facing_direction_angle_backward: float = math.pi/30,
-              max_facing_direction_angle_side_opposite_sign: float = math.pi/12,
-              max_facing_direction_angle_side_same_sign: float = math.pi/18) -> "JoystickDataProcessor":
+              max_base_direction_angle_forward: float = math.pi/9,
+              max_base_direction_angle_backward: float = math.pi/30,
+              max_base_direction_angle_side_opposite_sign: float = math.pi/12,
+              max_base_direction_angle_side_same_sign: float = math.pi/18) -> "JoystickDataProcessor":
         """Build a JoystickDataProcessor."""
 
         device = JoystickDevice.build()
@@ -246,42 +232,31 @@ class JoystickDataProcessor:
 
         return JoystickDataProcessor(device=device,
                                      base_vel_norm=base_vel_norm,
+                                     base_ang_vel_norm=base_ang_vel_norm,
                                      ellipsoid_forward_axis=ellipsoid_forward_axis,
                                      ellipsoid_side_axis=ellipsoid_side_axis,
                                      ellipsoid_backward_axis=ellipsoid_backward_axis,
                                      ellipsoid_scaling=ellipsoid_scaling,
                                      control_point_offset=control_point_offset,
-                                     max_facing_direction_angle_forward=max_facing_direction_angle_forward,
-                                     max_facing_direction_angle_backward=max_facing_direction_angle_backward,
-                                     max_facing_direction_angle_side_opposite_sign=max_facing_direction_angle_side_opposite_sign,
-                                     max_facing_direction_angle_side_same_sign=max_facing_direction_angle_side_same_sign)
+                                     max_base_direction_angle_forward=max_base_direction_angle_forward,
+                                     max_base_direction_angle_backward=max_base_direction_angle_backward,
+                                     max_base_direction_angle_side_opposite_sign=max_base_direction_angle_side_opposite_sign,
+                                     max_base_direction_angle_side_same_sign=max_base_direction_angle_side_same_sign)
 
-    def retrieve_current_feature_values(self) -> List:
-        """Retrieve the current motion and facing directions from the axis states, as well as the current crouch status from the 'a' button."""
+    def retrieve_motion_and_base_directions(self) -> List:
+        """Retrieve the current motion and base directions from the axis states."""
 
         # Update axis state
         self.device.update_joystick_state()
 
-        # Retrieve updated crouch status, motion and facing directions from the button and axis states
-        self.update_crouch_status()
+        # Retrieve updated motion and base directions from the axis states
         self.update_motion_direction()
-        self.update_facing_direction()
+        self.update_base_direction()
 
         # Return joystick inputs
         joystick_inputs = [self.curr_x, self.curr_y, self.curr_z, self.curr_rz]
 
         return joystick_inputs
-
-    def update_crouch_status(self) -> None:
-        """Update the crouch status, given the 'a' button state."""
-
-        if self.device.button_states["a"]:
-            self.a_pressed = True
-        else:
-            if self.a_pressed:
-                self.curr_crouch_status = not self.curr_crouch_status
-                self.a_pressed = False
-                print('Changed crouch status to: %s' % self.curr_crouch_status)
 
     def update_motion_direction(self) -> None:
         """Update the motion direction, given the (x,y) states from the left analog."""
@@ -300,12 +275,12 @@ class JoystickDataProcessor:
             self.curr_x = self.curr_x/norm
             self.curr_y = self.curr_y/norm
 
-    def update_facing_direction(self) -> None:
-        """Update the facing direction, given the (z,rz) states from the right analog and the current motion direction.
-        Several constraints on the current facing direction apply according to the current motion direction.
+    def update_base_direction(self) -> None:
+        """Update the base direction, given the (z,rz) states from the right analog and the current motion direction.
+        Several constraints on the current base direction apply according to the current motion direction.
         """
 
-        # If the left analog is not used (i.e. the robot is stopped), set frontal facing direction (i.e. prevent the robot to turn on the spot)
+        # If the left analog is not used (i.e. the robot is stopped), set frontal base direction (i.e. prevent the robot to turn on the spot)
         if self.curr_x == 0 and self.curr_y == 0:
 
             self.curr_z = 0
@@ -317,88 +292,70 @@ class JoystickDataProcessor:
             if self.device.axis_states["z"] == self.curr_z and self.device.axis_states["rz"] == self.curr_rz:
                 return
 
-            # If the left analog is used (i.e. the robot is moving) but the right analog is not, set frontal facing direction
+            # If the left analog is used (i.e. the robot is moving) but the right analog is not, set frontal base direction
             if self.device.axis_states["z"] == 0 and self.device.axis_states["rz"] == 0:
                 self.curr_z = 0
                 self.curr_rz = -1
 
             else:
 
-                # Compute the maximum local variation angle for the facing direction
-                max_facing_direction_angle = self.compute_max_facing_direction_angle()
+                # Compute the maximum local variation angle for the base direction
+                max_base_direction_angle = self.compute_max_base_direction_angle()
 
-                # Update facing direction taking into account the maximum variation angle constraint
-                theta = math.pi / 2 - max_facing_direction_angle
+                # Update base direction taking into account the maximum variation angle constraint
+                theta = math.pi / 2 - max_base_direction_angle
                 self.curr_rz = np.minimum(-math.sin(theta), self.device.axis_states["rz"])
                 if self.curr_rz < -math.sin(theta):
                     self.curr_z = self.device.axis_states["z"]
                 else:
                     self.curr_z = np.sign(self.device.axis_states["z"]) * math.cos(theta)
 
-                # Normalize facing direction
+                # Normalize base direction
                 norm = np.linalg.norm([self.curr_z, self.curr_rz])
                 if norm != 0:
                     self.curr_z = self.curr_z/norm
                     self.curr_rz = self.curr_rz/norm
 
-    def compute_max_facing_direction_angle(self) -> float:
-        """Compute the maximum local variation angle for the facing direction, given the current motion direction.
+    def compute_max_base_direction_angle(self) -> float:
+        """Compute the maximum local variation angle for the base direction, given the current motion direction.
           This angle is different for forward, backward and sideways walking. In the case of sideways walking, a
-          different maximum angle is defined for coincident or opposite signs of motion and facing direction."""
+          different maximum angle is defined for coincident or opposite signs of motion and base direction."""
 
         # Backward walking
         if self.curr_y > 0.2:
-            max_facing_direction_angle = self.max_facing_direction_angle_backward
+            max_base_direction_angle = self.max_base_direction_angle_backward
 
         # Side walking
         elif self.curr_y < 0.2 and np.linalg.norm(self.curr_x) > 0.2:
 
             if np.sign(self.curr_x) != np.sign(self.device.axis_states["z"]):
-                # Motion and facing directions with opposite signs
-                max_facing_direction_angle = self.max_facing_direction_angle_side_opposite_sign
+                # Motion and base directions with opposite signs
+                max_base_direction_angle = self.max_base_direction_angle_side_opposite_sign
 
             else:
-                # Motion and facing directions with same sign
-                max_facing_direction_angle = self.max_facing_direction_angle_side_same_sign
+                # Motion and base directions with same sign
+                max_base_direction_angle = self.max_base_direction_angle_side_same_sign
 
         else:
             # Forward walking
-            max_facing_direction_angle = self.max_facing_direction_angle_forward
+            max_base_direction_angle = self.max_base_direction_angle_forward
 
-        return max_facing_direction_angle
+        return max_base_direction_angle
 
     def process_joystick_inputs(self) -> (list, list, list, list):
         """Process the joystick inputs in order to retrieve the desired future ground trajectory specified by:
-           - a line of future base heights (base_heights)
            - a quadratic Bezier curve of future base positions (quad_bezier)
            - a series of desired base velocities associated to the base positions in the Bezier curve (base_velocities)
-           - a series of desired facing directions associated to the base positions in the Bezier curve (facing_dirs)
+           - a series of desired base directions associated to the base positions in the Bezier curve (base_dirs)
+           - a series of desired base angular velocities (yaw) associated to the base positions in the Bezier curve (base_angular_velocities)
         """
 
-        base_heights = self.compute_base_heights()
         quad_bezier = self.compute_quadratic_bezier()
         base_velocities = self.compute_base_velocities(quad_bezier)
-        facing_dirs = self.compute_facing_directions(quad_bezier)
+        base_dirs = self.compute_base_directions(quad_bezier)
+        base_ang_velocities = self.compute_base_angular_velocities(base_dirs)
 
-        return base_heights, quad_bezier, base_velocities, facing_dirs
-
-    def compute_base_heights(self) -> List:
-        """Compute a linear array (vs. time) of future base heights based on the desired crouch status. The array will contain fixed
-        interval changes in base height, moving toward the initial base height if the crouch status is False and toward a constant 
-        lower reference base height if the crouch status is True.
-        """
-        initial_base_height = 0.0
-
-        if self.curr_crouch_status: #crouching is turned on
-            base_height = initial_base_height-0.1 #-10 cm
-
-        else: #crouching is turned off
-            base_height = initial_base_height #same as initial position
-
-        # Compute the array of future base heights, all of which are the same value depending on whether crouching is enabled or not
-        base_heights = (base_height*np.ones(self.t.size)).tolist()
-
-        return base_heights
+        return quad_bezier, base_velocities, base_dirs, base_ang_velocities
 
     def compute_quadratic_bezier(self) -> List:
         """Compute a quadratic Bezier curve of future base positions from the joystick inputs. The last point of such
@@ -456,80 +413,96 @@ class JoystickDataProcessor:
 
         return base_velocities
 
-    def compute_facing_directions(self, quad_bezier: List) -> List:
-        """Compute a series of facing directions associated to the base positions in the Bezier curve. The series
-        progressively drives the current facing direction to the user-specified desired one.
+    def compute_base_directions(self, quad_bezier: List) -> List:
+        """Compute a series of base directions associated to the base positions in the Bezier curve. The series
+        progressively drives the current base direction to the user-specified desired one.
         """
 
-        facing_dirs = []
+        base_dirs = []
 
-        # Angle from the desired facing direction to the x positive semiaxis
+        # Angle from the desired base direction to the x positive semiaxis
         final_theta = compute_angle_wrt_x_positive_semiaxis([self.curr_z, -self.curr_rz])
 
-        # Angle from the current facing direction (always frontal in the local view) to the x positive semiaxis
+        # Angle from the current base direction (always frontal in the local view) to the x positive semiaxis
         curr_theta = math.pi/2
 
-        # Progressive angle update from the current facing direction to the desired one
+        # Progressive angle update from the current base direction to the desired one
         theta_update = (final_theta - curr_theta)/(len(quad_bezier) - 1)
 
-        # Compute series of facing directions progressively going from the current one to the desired one
+        # Compute series of base directions progressively going from the current one to the desired one
         for i in range(len(quad_bezier)):
 
-            # Current facing direction
-            curr_facing_dir = [math.cos(curr_theta), math.sin(curr_theta)]
+            # Current base direction
+            curr_base_dir = [math.cos(curr_theta), math.sin(curr_theta)]
 
             # Normalization
-            norm = np.linalg.norm(curr_facing_dir)
+            norm = np.linalg.norm(curr_base_dir)
             if norm != 0:
-                curr_facing_dir = curr_facing_dir/norm
+                curr_base_dir = curr_base_dir/norm
 
             # Update
-            facing_dirs.append(curr_facing_dir)
+            base_dirs.append(curr_base_dir)
             curr_theta += theta_update
 
-        return facing_dirs
+        return base_dirs
+
+    def compute_base_angular_velocities(self, base_dirs: List) -> List:
+        """Compute a series of base angular velocities associated to the base directions from the Bezier curve by differentiation.
+        If they are not null, such base angular velocities have a predefined norm.
+        """
+        base_ang_velocities = []
+
+        # Compute base angular velocities by differentiating Bezier base directions
+        for i in range(1,len(base_dirs)):
+
+            base_dir_prev = base_dirs[i-1]
+            base_dir = base_dirs[i]
+            cos_theta = np.dot(base_dir_prev, base_dir) # unitary norm vectors
+            sin_theta = np.cross(base_dir_prev, base_dir) # unitary norm vectors
+            theta = math.atan2(sin_theta, cos_theta)
+
+            if np.abs(theta) != 0:
+                base_ang_derivative = theta/np.abs(theta)
+                base_ang_derivative *= self.base_ang_vel_norm
+            else:
+                base_ang_derivative = 0
+
+            E = np.array([[0, -np.sin(theta),np.cos(theta)],
+                          [0, np.cos(theta), np.sin(theta)],
+                          [1, 0, 0]])
+            base_angular_velocity = E.dot(np.array([base_ang_derivative,0.0,0.0]))
+            base_ang_velocities.append(base_angular_velocity[2])
+
+        # The last base angular velocity is approximated by replicating the previous one
+        base_ang_velocities.append(base_ang_velocities[-1])
+
+        return base_ang_velocities
 
     def send_data(self,
                   output_port: yarp.BufferedPortBottle,
-                  base_heights: List,
-                  quad_bezier: List,
                   base_velocities: List,
-                  facing_dirs: List,
+                  base_angular_velocities: List,
                   joystick_inputs: List) -> None:
         """Send raw and processed joystick data through YARP."""
 
-        # The joystick input from the user written on the YARP port will contain 7 + 3 * 7 * 2 + 4 = 53 values:
-        # 0-6 are base_heights (z)
-        # 7-20 are quad_bezier (x,y)
-        # 21-34 are base_velocities (x,y)
-        # 35-48 are facing_dirs (x,y)
-        # 49-52 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
+        # The joystick input from the user written on the YARP port will contain 2 * 7 + 7 + 4 = 25 values:
+        # 0-13 are base_velocities (x,y)
+        # 14-20 are base_angular_velocities (z)
+        # 21-24 are joystick inputs to be stored for future plotting (curr_x, curr_y, curr_z, curr_rz)
 
         # Add data to be sent through the YARP port
         bottle = output_port.prepare()
         bottle.clear()
-        for coord in base_heights:
-            bottle.addFloat32(coord)
-        for data in [quad_bezier, base_velocities, facing_dirs]:
+        for data in base_velocities:
             for elem in data:
-                for coord in elem:
-                    bottle.addFloat32(coord)
+                bottle.addFloat32(elem)
+        for data in base_angular_velocities:
+            bottle.addFloat32(data)
         for joystick_input in joystick_inputs:
             bottle.addFloat32(joystick_input)
 
         # Send data through the YARP port
         output_port.write()
-
-    def plot_base_heights(self, base_heights: list) -> None:
-        """Visualize the desired base height (i.e. crouch status) over time."""
-
-        plt.figure(1)
-        plt.clf()
-
-        # Plot configuration
-        plt.plot(self.t,base_heights, '-o')
-        plt.xlabel("time (s)")
-        plt.ylabel("base height (m)")
 
     def plot_motion_direction(self) -> None:
         """Visualize the current motion direction."""
@@ -556,8 +529,8 @@ class JoystickDataProcessor:
         plt.axis('off')
         plt.legend([desired_motion_direction], ['DESIRED MOTION DIRECTION'], loc="lower center")
 
-    def plot_facing_direction(self) -> None:
-        """Visualize current facing direction."""
+    def plot_base_direction(self) -> None:
+        """Visualize current base direction."""
 
         plt.figure(3)
         plt.clf()
@@ -569,9 +542,9 @@ class JoystickDataProcessor:
         plt.plot(x, y, 'b')
         plt.plot(x, -y, 'b')
 
-        # Facing direction
+        # Base direction
         plt.scatter(0, 0, c='b')
-        desired_facing_direction = plt.arrow(0, 0, self.curr_z, -self.curr_rz, length_includes_head=True, width=0.01,
+        desired_base_direction = plt.arrow(0, 0, self.curr_z, -self.curr_rz, length_includes_head=True, width=0.01,
                                              head_width=8 * 0.01, head_length=1.8 * 8 * 0.01, color='b')
 
         # Plot configuration
@@ -579,11 +552,11 @@ class JoystickDataProcessor:
         plt.xlim([-1.2, 1.2])
         plt.ylim([-1.4, 1.2])
         plt.axis('off')
-        plt.legend([desired_facing_direction], ['DESIRED FACING DIRECTION'], loc="lower center")
+        plt.legend([desired_base_direction], ['DESIRED BASE DIRECTION'], loc="lower center")
 
-    def plot_facing_Bezier(self, quad_bezier: list, facing_dirs: list) -> None:
+    def plot_base_Bezier(self, quad_bezier: list, base_dirs: list) -> None:
         """Visualize the Bezier curve of base positions obtained from the joystick inputs along with the
-        associated facing directions.
+        associated base directions.
         """
 
         plt.figure(4)
@@ -608,10 +581,10 @@ class JoystickDataProcessor:
         quad_bezier_y = [elem.tolist()[1] for elem in quad_bezier]
         plt.scatter(quad_bezier_x, quad_bezier_y, c='r')
 
-        # Plot facing directions (scaled for visualization purposes)
+        # Plot base directions (scaled for visualization purposes)
         for i in range(len(quad_bezier)):
-            plt.plot([quad_bezier_x[i], quad_bezier_x[i] + facing_dirs[i][0]/10],
-                     [quad_bezier_y[i], quad_bezier_y[i] + facing_dirs[i][1]/10],
+            plt.plot([quad_bezier_x[i], quad_bezier_x[i] + base_dirs[i][0]/10],
+                     [quad_bezier_y[i], quad_bezier_y[i] + base_dirs[i][1]/10],
                      c='b')
 
         # Plot configuration
