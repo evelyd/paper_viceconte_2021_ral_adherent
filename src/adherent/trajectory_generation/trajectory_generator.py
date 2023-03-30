@@ -45,6 +45,7 @@ class StorageHandler:
     posturals: Dict = field(default_factory=lambda: {'base': [], 'joints': [], 'links': [], 'com': []})
     joystick_inputs: Dict = field(default_factory=lambda: {'raw_data': [], 'base_velocities': [], 'base_angular_velocities': []})
     blending_coeffs: Dict = field(default_factory=lambda: {'w_1': [], 'w_2': [], 'w_3': [], 'w_4': []})
+    base_velocities_measured: Dict = field(default_factory=lambda: {'linear_velocities_measured': [], 'angular_velocities_measured': []})
 
     @staticmethod
     def build(storage_path: str) -> "StorageHandler":
@@ -67,6 +68,12 @@ class StorageHandler:
         self.joystick_inputs["raw_data"].append(raw_data)
         self.joystick_inputs["base_velocities"].append(base_velocities)
         self.joystick_inputs["base_angular_velocities"].append(base_angular_velocities)
+
+    def update_base_velocities_measured_storage(self, current_linear_velocities_measured_local: List, current_angular_velocities_measured_local: List) -> None:
+        """Update the storage of the base velocities."""
+
+        self.base_velocities_measured["linear_velocities_measured"].append(current_linear_velocities_measured_local)
+        self.base_velocities_measured["angular_velocities_measured"].append(current_angular_velocities_measured_local)
 
     def update_blending_coefficients_storage(self, blending_coefficients: List) -> None:
         """Update the storage of the blending coefficients."""
@@ -627,6 +634,56 @@ class Plotter:
                        ellipsoid_side_axis=ellipsoid_side_axis,
                        ellipsoid_backward_axis=ellipsoid_backward_axis,
                        ellipsoid_scaling=ellipsoid_scaling)
+    
+    @staticmethod
+    def plot_velocities(figure_lin_base_velocities: int, figure_ang_base_velocities: int, base_velocities: Dict) -> None:
+        """Plot the linear and angular base velocities."""
+
+        fig = plt.figure(figure_lin_base_velocities)
+        plt.clf()
+
+        generation_rate = 1/50
+
+        base_velocities_x = []
+        base_velocities_y = []
+        base_velocities_z = []
+
+        base_ang_velocities_x = []
+        base_ang_velocities_y = []
+        base_ang_velocities_z = []
+
+        # Separate components of velocity
+        for i in range(1,len(base_velocities["linear_velocities_measured"])):
+            base_velocities_x.append(base_velocities["linear_velocities_measured"][i][0])
+            base_velocities_y.append(base_velocities["linear_velocities_measured"][i][1])
+            base_velocities_z.append(base_velocities["linear_velocities_measured"][i][2])
+
+            base_ang_velocities_x.append(base_velocities["angular_velocities_measured"][i][0])
+            base_ang_velocities_y.append(base_velocities["angular_velocities_measured"][i][1])
+            base_ang_velocities_z.append(base_velocities["angular_velocities_measured"][i][2])
+
+        tt = generation_rate * np.asarray(range(0, len(base_velocities_x)))
+
+        ax = fig.add_subplot()
+        ax.plot(tt, base_velocities_x, 'r', tt, base_velocities_y, 'g', tt, base_velocities_z, 'b')
+        plt.title("Linear base velocities")
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Linear velocity (m/s)')
+        plt.grid('on')
+        ax.legend(['x', 'y', 'z'])
+
+        #Plot angular velocities
+        fig = plt.figure(figure_ang_base_velocities)
+        plt.clf()
+        ax = fig.add_subplot()
+
+        # Plot the base angular velocities over time
+        ax.plot(tt, base_ang_velocities_x, 'r', tt, base_ang_velocities_y, 'g', tt, base_ang_velocities_z, 'b')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Angular velocity (rad/s)')
+        plt.title('Local base angular velocities')
+        plt.grid('on')
+        ax.legend(['roll', 'pitch', 'yaw'])
 
     @staticmethod
     def plot_blending_coefficients(figure_blending_coefficients: int, blending_coeffs: Dict) -> None:
@@ -1172,6 +1229,10 @@ class TrajectoryGenerator:
     plotter: Plotter
     model: LearnedModel
 
+    # Store previous base position
+    base_position_prev: List = field(default_factory=lambda: [0,0,0])
+    base_quaternion_prev: List = field(default_factory=lambda: [0,0,0,0])
+
     # Iteration counter and generation rate
     iteration: int = 0
     generation_rate: float = 1/50
@@ -1335,7 +1396,7 @@ class TrajectoryGenerator:
 
     def compute_kinematically_feasible_base_and_update_posturals(self, joint_positions: List,
                                                                 base_quaternion: List, controlled_joints: List,
-                                                                link_names: List) -> (List, List, List, List):
+                                                                link_names: List) -> (List, List, List, List, List, List):
         """Compute kinematically-feasible base position and retrieve updated posturals."""
 
         # Compute and apply kinematically-feasible base position
@@ -1352,7 +1413,30 @@ class TrajectoryGenerator:
                                                                          kindyn=self.kincomputations.kindyn,
                                                                          link_names=link_names)
 
-        return new_base_postural, new_joints_postural, new_links_postural, new_com_postural
+        # Compute velocities only if we are not on the first iteration
+        if self.iteration !=0:
+            # Global base linear velocities by differentiation of base positions
+            current_linear_velocities_measured_global = (kinematically_feasible_base_position - self.base_position_prev) / self.generation_rate
+
+            # Get local base linear velocities (local base frame)
+            base_rotation = Quaternion.to_rotation(np.array(base_quaternion))
+            base_R_world = np.linalg.inv(base_rotation)
+            current_linear_velocities_measured_local = base_R_world.dot(current_linear_velocities_measured_global)
+
+            self.base_position_prev = kinematically_feasible_base_position
+
+            # Compute angular velocities
+            # Global base angular velocities by differentiation of base quaternion
+            base_quaternion_derivative = (base_quaternion - self.base_quaternion_prev) / self.generation_rate
+            E = np.array([[-base_quaternion[1], base_quaternion[0], -base_quaternion[3], base_quaternion[2]],
+                            [-base_quaternion[2], base_quaternion[3], base_quaternion[0], -base_quaternion[1]],
+                            [-base_quaternion[3], -base_quaternion[2], base_quaternion[1], base_quaternion[0]]])
+            current_angular_velocities_measured_global = 2 * E.dot(base_quaternion_derivative)
+            current_angular_velocities_measured_local = base_R_world.dot(current_angular_velocities_measured_global)
+
+            self.base_quaternion_prev = base_quaternion
+
+        return current_linear_velocities_measured_local, current_angular_velocities_measured_local, new_base_postural, new_joints_postural, new_links_postural, new_com_postural
 
     def retrieve_joystick_inputs(self, input_port: yarp.BufferedPortBottle, base_velocities: List,
                                  base_angular_velocities: List, raw_data: List) -> (List, List, List):
@@ -1416,10 +1500,14 @@ class TrajectoryGenerator:
 
         return blended_base_velocities, blended_base_angular_velocities
 
-    def update_storages_and_save(self, blending_coefficients: List, base_postural: List, joints_postural: List,
+    def update_storages_and_save(self, linear_velocities_measured: List, angular_velocities_measured: List, blending_coefficients: List, base_postural: List, joints_postural: List,
                                  links_postural: List, com_postural: List, raw_data: List,
                                  base_velocities: List, base_angular_velocities: List, save_every_N_iterations: int) -> None:
         """Update the blending coefficients, posturals and joystick input storages and periodically save data."""
+
+        # Update the measured base velocities storage
+        self.storage.update_base_velocities_measured_storage(current_linear_velocities_measured_local=linear_velocities_measured, 
+                                                             current_angular_velocities_measured_local=angular_velocities_measured)        
 
         # Update the blending coefficients storage
         self.storage.update_blending_coefficients_storage(blending_coefficients=blending_coefficients)

@@ -40,6 +40,7 @@ parser.add_argument("--save_every_N_iterations", help="Data will be saved every 
 parser.add_argument("--plot_trajectory_blending", help="Visualize the blending of the future ground trajectory to build the next network input.", action="store_true")
 parser.add_argument("--plot_footsteps", help="Visualize the footsteps.", action="store_true")
 parser.add_argument("--plot_blending_coefficients", help="Visualize blending coefficient activations.", action="store_true")
+parser.add_argument("--plot_velocities", help="Visualize the local linear and angular base velocities.", action="store_true")
 
 args = parser.parse_args()
 
@@ -49,6 +50,7 @@ save_every_N_iterations = args.save_every_N_iterations
 plot_trajectory_blending = args.plot_trajectory_blending
 plot_footsteps = args.plot_footsteps
 plot_blending_coefficients = args.plot_blending_coefficients
+plot_velocities=args.plot_velocities
 
 # ==================
 # YARP CONFIGURATION
@@ -106,6 +108,9 @@ figure_base_vel = 1
 figure_base_ang_vel = 2
 figure_blending_coefficients = 3
 figure_footsteps = 4
+figure_lin_base_velocities = 5
+figure_ang_base_velocities = 6
+
 plt.ion()
 
 # ====================
@@ -176,7 +181,7 @@ with tf.Session(config=config) as sess:
                                                 new_footstep=generator.storage.footsteps[support_foot][-1])
 
         # Compute kinematically-feasible base position and updated posturals
-        new_base_postural, new_joints_postural, new_links_postural, new_com_postural = \
+        current_linear_velocities_measured_local, current_angular_velocities_measured_local, new_base_postural, new_joints_postural, new_links_postural, new_com_postural = \
             generator.compute_kinematically_feasible_base_and_update_posturals(joint_positions=joint_positions,
                                                                               base_quaternion=new_base_quaternion,
                                                                               controlled_joints=controlled_joints,
@@ -197,7 +202,9 @@ with tf.Session(config=config) as sess:
                                                   base_angular_velocities=base_angular_velocities)
 
         # Update storage and periodically save data
-        generator.update_storages_and_save(blending_coefficients=current_blending_coefficients,
+        generator.update_storages_and_save(linear_velocities_measured=current_linear_velocities_measured_local,
+                                           angular_velocities_measured=current_angular_velocities_measured_local,
+                                           blending_coefficients=current_blending_coefficients,
                                            base_postural=new_base_postural,
                                            joints_postural=new_joints_postural,
                                            links_postural=new_links_postural,
@@ -222,8 +229,14 @@ with tf.Session(config=config) as sess:
             # Plot the blending coefficients
             generator.plotter.plot_blending_coefficients(figure_blending_coefficients=figure_blending_coefficients,
                                                          blending_coeffs=generator.storage.blending_coeffs)
+            
+        if plot_velocities:
 
-        if plot_trajectory_blending or plot_footsteps or plot_blending_coefficients:
+            # Plot the base velocities
+            generator.plotter.plot_velocities(figure_lin_base_velocities=figure_lin_base_velocities, figure_ang_base_velocities=figure_ang_base_velocities,
+                                                         base_velocities=generator.storage.base_velocities_measured)
+
+        if plot_trajectory_blending or plot_footsteps or plot_blending_coefficients or plot_velocities:
 
             # Plot
             plt.show()
