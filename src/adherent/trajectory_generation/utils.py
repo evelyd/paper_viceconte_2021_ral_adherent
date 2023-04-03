@@ -665,8 +665,8 @@ def define_initial_support_foot_and_vertex(robot: str) -> List:
 
     return initial_support_foot, initial_support_vertex
 
-def define_initial_base_yaw(robot: str) -> List:
-    """Define the robot-specific initial base yaw expressed in the world frame."""
+def define_initial_base_angle(robot: str) -> List:
+    """Define the robot-specific initial base angle expressed in the world frame."""
 
     if robot == "iCubV2_5":
         # For iCubV2_5, the initial base yaw is 180 degs since the x axis of the base frame points backward
@@ -681,7 +681,7 @@ def define_initial_base_yaw(robot: str) -> List:
         initial_base_angle = np.array([0.0, 0.0, 0.0])
 
     else:
-        raise Exception("Initial base yaw only defined for iCubV2_5, iCubV3 and ergoCubV1.")
+        raise Exception("Initial base angle only defined for iCubV2_5, iCubV3 and ergoCubV1.")
 
     return initial_base_angle
 
