@@ -123,9 +123,7 @@ frontal_chest_dir = utils.define_frontal_chest_direction(robot="ergoCubV1")
 # Instantiate the features extractor
 extractor = features_extractor.FeaturesExtractor.build(ik_solutions=ik_solutions,
                                                        kindyn=kindyn,
-                                                       controlled_joints_indexes=controlled_joints_indexes,
-                                                       frontal_base_dir=frontal_base_dir,
-                                                       frontal_chest_dir=frontal_chest_dir)
+                                                       controlled_joints_indexes=controlled_joints_indexes)
 # Extract the features
 extractor.compute_features()
 
