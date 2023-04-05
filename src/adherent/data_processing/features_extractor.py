@@ -75,7 +75,7 @@ class GlobalFrameFeatures:
             self.base_positions.append(base_position)
 
             # Joint angles
-            joint_angles = joint_positions
+            joint_angles = np.array([joint_positions[index] for index in self.controlled_joints_indexes])
             self.s.append(joint_angles)
 
             # Base quaternion

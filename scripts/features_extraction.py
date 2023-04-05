@@ -116,10 +116,6 @@ kindyn.set_robot_state_from_model(model=icub, world_gravity=np.array(world.gravi
 # FEATURES EXTRACTION
 # ===================
 
-# Define robot-specific frontal base and chest directions
-frontal_base_dir = utils.define_frontal_base_direction(robot="ergoCubV1")
-frontal_chest_dir = utils.define_frontal_chest_direction(robot="ergoCubV1")
-
 # Instantiate the features extractor
 extractor = features_extractor.FeaturesExtractor.build(ik_solutions=ik_solutions,
                                                        kindyn=kindyn,
