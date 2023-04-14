@@ -1355,7 +1355,7 @@ class Autoregression:
         # Put joystick velocities in terms 
         negated_base_velocities = []
         for k in range(0,len(base_velocities)):
-            negated_base_velocities.append([-base_velocities[k][0], -base_velocities[k][1]])
+            negated_base_velocities.append([base_velocities[k][0], -base_velocities[k][1]])
 
         # Blend user-specified and network-predicted future base velocities
         blended_base_velocities = trajectory_blending(future_base_vel_blend, negated_base_velocities, self.t, self.tau_base_velocities)
@@ -1648,7 +1648,7 @@ class TrajectoryGenerator:
         # Extract the new base orientation from the output
         base_angle_change = base_angular_velocity * self.generation_rate
         new_base_angle = self.autoregression.current_base_angle + base_angle_change
-        new_base_rotation = Rotation.from_euler('xyz', [0, 0, new_base_angle[2]])
+        new_base_rotation = Rotation.from_euler('xyz', [0, base_pitch_offset, new_base_angle[2]])
         new_base_quaternion = Quaternion.to_wxyz(new_base_rotation.as_quat())
 
         # Update the base orientation and the joint positions in the robot configuration
