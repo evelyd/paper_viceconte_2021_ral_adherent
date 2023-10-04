@@ -66,7 +66,12 @@ def compute_zmp(kindyn: blf.floating_base_estimators.KinDynComputations,
 def synchronize(curr_dt: float, dt: float) -> float:
     """Auxiliary function for synchronization."""
 
-    if curr_dt+dt - yarp.now() > 0:
+    t = curr_dt+dt - yarp.now()
+
+    if t > 0:
+
+        # Debug to check whether the synchronization takes place or not
+        print("ok!")
 
         # Wait the proper amount of time to be synchronized at intervals of dt
         time.sleep(curr_dt+dt - yarp.now())
@@ -74,7 +79,7 @@ def synchronize(curr_dt: float, dt: float) -> float:
     else:
 
         # Debug to check whether the synchronization takes place or not
-        print("no synch!")
+        print("no synch of ", t)
 
     return curr_dt+dt
 

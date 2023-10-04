@@ -996,7 +996,7 @@ class TrajectoryOptimization:
 
         parameters_handler = blf.parameters_handler.StdParametersHandler()
         parameters_handler.set_parameter_float("sampling_time", dt)
-        parameters_handler.set_parameter_float("step_height", 0.025)
+        parameters_handler.set_parameter_float("step_height", 0.02) # TODO: tune # originally 0.025
         parameters_handler.set_parameter_float("foot_apex_time", 0.4)
         parameters_handler.set_parameter_float("foot_landing_velocity", 0.0)
         parameters_handler.set_parameter_float("foot_landing_acceleration", 0)
@@ -1307,6 +1307,9 @@ class TrajectoryController:
     # Auxiliary variable for synchronization
     curr_dt: float = 0
 
+    # True if the script is executed on the real robot
+    real_robot: bool = False
+
     # Robot control
     control_board: blf.robot_interface.PolyDriverDescriptor = None
     robot_control: blf.robot_interface.YarpRobotControl = None
@@ -1337,7 +1340,7 @@ class TrajectoryController:
     @staticmethod
     def build(robot_urdf: str, footsteps_path: str, joystick_path: str, posturals_path: str, storage_path: str, time_scaling: int,
               footstep_scaling: float, use_joint_references: bool, controlled_joints: List, foot_name_to_index: Dict,
-              initial_joint_reference: List, shoulder_offset: float = 0.15) -> "TrajectoryController":
+              initial_joint_reference: List, shoulder_offset: float = 0.15, real_robot: bool = False) -> "TrajectoryController":
         """Build an instance of TrajectoryController."""
 
         # Control loop rate (100 Hz)
@@ -1391,11 +1394,11 @@ class TrajectoryController:
     # CONFIGURATION
     # =============
 
-    def configure(self, k_zmp: float = 1.0, k_dcm: float = 1.1, k_com: float = 4.0) -> None:
+    def configure(self, k_zmp: float = 1.0, k_dcm: float = 1.1, k_com: float = 4.0, real_robot: bool = False) -> None:
         """Configure the entire trajectory control pipeline."""
 
         # Configure the control board and the sensor bridge
-        self.configure_robot_control_and_sensor_bridge()
+        self.configure_robot_control_and_sensor_bridge(real_robot=real_robot)
 
         # Compute and set the initial joint reference
         self.set_initial_joint_reference()
@@ -1418,7 +1421,7 @@ class TrajectoryController:
         # Configure the integrator from joint velocities to joint positions
         self.configure_joints_integrator()
 
-    def configure_robot_control_and_sensor_bridge(self) -> None:
+    def configure_robot_control_and_sensor_bridge(self, real_robot: bool = False) -> None:
         """Setup the robot control and the sensor bridge."""
 
         # Control board configuration
@@ -1427,9 +1430,15 @@ class TrajectoryController:
         handler.set_parameter_vector_string("remote_control_boards",
                                             ["left_leg", "right_leg", "torso", "left_arm", "head", "right_arm"])
         handler.set_parameter_string("local_prefix", "test_local")
-        handler.set_parameter_float("positioning_duration", 3.0)
+        handler.set_parameter_float("positioning_duration", 2.0)
         handler.set_parameter_float("positioning_tolerance", 0.001)
-        handler.set_parameter_string("robot_name", "icubSim")
+
+        if real_robot: # TODO: doublecheck
+            handler.set_parameter_string("robot_name", "icub")
+        else:
+            handler.set_parameter_string("robot_name", "icubSim")
+
+        # TODO: tune on the real robot
         if self.use_joint_references:
             handler.set_parameter_float("position_direct_max_admissible_error", 0.25)
         else:
@@ -1682,22 +1691,39 @@ class TrajectoryController:
     def set_current_joint_reference(self, idx):
         """"Set synchronously the joint references to the robot."""
 
+        print("idx=", idx)
+
         if idx == 0:
 
-            input("Press enter to start trajectory control (PositionDirect)")
+            input("Press enter to start trajectory control")
 
-            # Retrieve the initial time
-            initial_time = yarp.now()
-            print("initial time", initial_time)
-            self.curr_dt = initial_time
+            # On the real robot, set in Position mode the very first reference
+            self.robot_control.set_references(self.joints_values_des.tolist(), blf.robot_interface.IRobotControl.ControlMode.Position)
+            time.sleep(0.05)
 
         else:
 
-            # Set the current reference in PositionDirect mode
-            self.robot_control.set_references(self.joints_values_des.tolist(), blf.robot_interface.IRobotControl.ControlMode.PositionDirect)
+            if idx < 0.6:  # TODO: tune (also below) based on the generated trajectory
 
-            # Synchronization
-            self.curr_dt = synchronize(self.curr_dt, dt=self.dt)
+                # On the real robot, set in Position mode the first references
+                self.robot_control.set_references(self.joints_values_des.tolist(), blf.robot_interface.IRobotControl.ControlMode.Position)
+                time.sleep(0.05)
+
+            else:
+
+                # Set the current reference in PositionDirect mode # Does control mode switch requires time?
+                self.robot_control.set_references(self.joints_values_des.tolist(), blf.robot_interface.IRobotControl.ControlMode.PositionDirect)
+
+                if idx == 0.6:  # TODO: tune (also above) based on the generated trajectory
+
+                    # On the real robot, retrieve the initial time when you start controlling in PositionDirect mode
+                    initial_time = yarp.now()
+                    print("initial time: ", initial_time)
+                    self.curr_dt = initial_time
+
+                # Synchronization
+                self.curr_dt = synchronize(self.curr_dt, dt=self.dt)
+
 
     # =======
     # STORAGE
